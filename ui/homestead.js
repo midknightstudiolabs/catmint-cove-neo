@@ -22,6 +22,7 @@ function neoHomestead(){
   h.cafeXP ||= 0;
   h.open ??= true;
   h.trays ||= [{key:'carrot',servings:h.counter||0},{key:null,servings:0}];
+  if(!h.cafeSliceStarted){h.cafeSliceStarted=true;h.stock.carrot+=8;h.stock.pumpkin+=6;h.stock.berry+=4;h.trays[0]={key:'carrot',servings:h.trays[0].servings+8};h.counter+=8;}
   return G.homestead;
 }
 function neoBuyCafeIngredients(){const h=neoHomestead();if(G.shells<4)return;G.shells-=4;h.stock.carrot+=3;save();syncHud();neoOpenHomestead('cafe');}
@@ -135,3 +136,6 @@ function neoOpenHomestead(kind){
   sheet.querySelector('.x').onclick=()=>{sheet.hidden=true;clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);};
   neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;if(!garden)neoCafeGuide(sheet,h);const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
 }
+
+// Dedicated testing entry. Keeps this prototype separate from the live Cove save.
+addEventListener('DOMContentLoaded',()=>{if(new URLSearchParams(location.search).has('cafe')){document.getElementById('titleScreen').hidden=true;document.getElementById('titleScreen').style.display='none';neoOpenHomestead('cafe');}});
