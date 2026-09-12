@@ -1435,6 +1435,17 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .cafe-full-room .cafe-room-tools{left:auto;right:8px;top:8px}
 .cafe-full-room .cafe-room-tools select,.cafe-full-room .cafe-room-tools [data-store]{display:none}
 .cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) select,.cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) [data-store]{display:inline-block}
+/* Compact café drawers leave the room visible around the menu. */
+.cafe-full-room .cafe-drawer{left:auto;right:16px;bottom:76px;width:360px;max-width:calc(100% - 32px);max-height:55%;box-sizing:border-box;padding:14px;border-radius:16px;font-size:13px}
+.cafe-full-room .cafe-drawer h3{font-size:17px;margin:8px 0}
+.cafe-full-room .cafe-drawer p{font-size:12px;margin:6px 0;line-height:1.4}
+.cafe-full-room .cafe-drawer .homestead-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.cafe-full-room .cafe-drawer .neo-destination{padding:10px;min-height:0;gap:4px;font-size:13px}
+.cafe-full-room .cafe-drawer .neo-destination small{font-size:11px;line-height:1.35}
+.cafe-full-room .cafe-drawer .btn{min-height:44px;padding:7px 10px;font-size:12px;margin:3px 0}
+.cafe-full-room .cafe-bottom-nav{flex:0 0 auto;align-self:center;width:min(100%,460px);gap:6px}
+.cafe-full-room .cafe-bottom-nav .btn{font-size:13px;padding:8px 12px;min-height:44px}
+@media(max-width:480px){.cafe-full-room .cafe-drawer{right:10px;max-width:calc(100% - 20px);width:320px;max-height:58%;bottom:72px}.cafe-full-room .cafe-bottom-nav .btn{padding:7px;font-size:12px}}
 </style>
 
 <div id="app">
