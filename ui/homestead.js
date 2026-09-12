@@ -112,6 +112,16 @@ function neoOpenHomestead(kind){
   const n=garden?h.plots.length:h.tables,max=garden?8:5,cost=garden?100+(n-4)*75:150+(n-3)*100;
   if(n<max){const expand=document.createElement('button');expand.className='btn';expand.textContent=`Add ${garden?'a garden patch':'a table'} · ${cost} shells`;expand.disabled=G.shells<cost;expand.onclick=()=>{if(neoExpandHomestead(kind))neoOpenHomestead(kind);};sheet.append(expand);}
   const other=document.createElement('button');other.className='btn';other.textContent=garden?'Visit Catmint Café':'Visit Cove Garden';other.onclick=()=>neoOpenHomestead(garden?'cafe':'garden');sheet.append(other);
+  if(!garden){
+    const kitchen=sheet.querySelector('#neo-cafe-kitchen');kitchen.hidden=true;kitchen.classList.add('cafe-drawer');
+    const close=document.createElement('button');close.className='btn';close.textContent='Back to café';close.onclick=()=>kitchen.hidden=true;kitchen.prepend(close);
+    const nav=document.createElement('div');nav.className='cafe-bottom-nav';const cook=document.createElement('button');cook.className='btn';cook.textContent='Cookbook';cook.onclick=()=>kitchen.hidden=!kitchen.hidden;nav.append(cook);
+    const styles=sheet.querySelector('.homestead-style');styles.classList.add('cafe-drawer');styles.hidden=true;const design=document.createElement('button');design.className='btn';design.textContent='Decorate';design.onclick=()=>{styles.hidden=!styles.hidden;styles.open=true;};nav.append(design);
+    const backStyle=document.createElement('button');backStyle.className='btn';backStyle.textContent='Back to café';backStyle.onclick=()=>styles.hidden=true;styles.append(backStyle);
+    for(const b of [...sheet.children])if(b.tagName==='BUTTON'&&(b.textContent.startsWith('Add a table')||b.textContent==='Visit Cove Garden'))styles.append(b);
+    const collect=sheet.querySelector('[data-cafe-collect]');nav.append(collect);sheet.append(nav);
+    sheet.querySelector('.homestead-greeting')?.remove();sheet.querySelector('.homestead-cafe-room > button')?.remove();
+  }
   sheet.querySelector('.x').onclick=()=>{sheet.hidden=true;clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);};
   neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
 }

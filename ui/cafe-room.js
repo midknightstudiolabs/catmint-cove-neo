@@ -32,12 +32,13 @@ function neoPaintCafe(cv,h){
   select.onchange=()=>{selected=items.find(f=>f.id===select.value)||null;if(selected){editing=true;controls();status.textContent='Tap an empty tile to place your furniture for free.';}};
   function point(e){const r=cv.getBoundingClientRect();return{x:Math.floor(((e.clientX-r.left)*720/r.width-40)/80),y:Math.floor(((e.clientY-r.top)*560/r.height-120)/80)};}
   cv.style.touchAction='none';
-  cv.onpointerdown=e=>{const p=point(e),hit=items.find(f=>!f.boxed&&f.x===p.x&&f.y===p.y);if(!editing){if(hit?.type==='oven'){document.getElementById('neo-cafe-kitchen')?.scrollIntoView({block:'nearest',behavior:'smooth'});status.textContent='Choose a recipe below the room.';}if(hit?.type==='counter'){if(h.stoves.some(j=>j&&Date.now()>=j.ready))neoStockCounter();else status.textContent=h.counter?`${h.counter} treats ready for guests.`:'Cook a batch on the stove first.';}return;}
+  cv.onpointerdown=e=>{const p=point(e),hit=items.find(f=>!f.boxed&&f.x===p.x&&f.y===p.y);if(!editing){if(hit?.type==='oven'){document.getElementById('neo-cafe-kitchen').hidden=false;status.textContent='Choose a recipe below the room.';}if(hit?.type==='counter'){if(h.stoves.some(j=>j&&Date.now()>=j.ready))neoStockCounter();else status.textContent=h.counter?`${h.counter} treats ready for guests.`:'Cook a batch on the stove first.';}return;}
     if(hit)selected=hit;if(!selected)return;drag={id:e.pointerId};ghost=p;cv.setPointerCapture(e.pointerId);controls();};
   cv.onpointermove=e=>{if(drag?.id===e.pointerId)ghost=point(e);};
   cv.onpointerup=e=>{if(drag?.id!==e.pointerId)return;const p=point(e);drag=null;if(selected&&neoCafeCanPlace(items,selected.id,p.x,p.y)){selected.x=p.x;selected.y=p.y;selected.boxed=false;status.textContent='Placed. Your guests still have a clear path.';save();}else status.textContent='That tile blocks furniture or a walkway. Choose a green tile.';ghost=null;controls();};
   cv.onpointercancel=()=>{drag=null;ghost=null;};
   const originals=cats.filter(c=>!c.visitor).slice(0,5),guests=originals.map(c=>{const copy=new Cat({coatKey:c.coatKey,mascot:c.mascot,markSeed:c.markSeed,x:0,y:0});copy.state='loafing';copy.worn=[...(c.worn||[])];return copy;});
+  const waiterCat=new Cat({coatKey:originals[0]?.coatKey||'ginger',x:0,y:0});
   const center=p=>({x:80+p.x*80,y:160+p.y*80});
   function paint(t){
     if(!cv.isConnected||document.getElementById('neo-homestead').hidden)return;neoCafeFrame=requestAnimationFrame(paint);if(document.hidden||t-last<66)return;last=t;
@@ -61,7 +62,8 @@ function neoPaintCafe(cv,h){
       if(visit.state!=='dirty')layers.push({y:p.y,draw:()=>{g.save();g.translate(p.x,p.y+12);g.scale(1.35,1.35);c.state=distance<1?'walking':'loafing';c.walk=still?0:t/130;c.walkAmt=distance<1?1:0;c.face=b.x<a.x?-1:1;c.bob=0;drawCat(g,c,true);g.restore();g.fillStyle='#43543f';g.font='12px sans-serif';g.textAlign='center';g.fillText({arriving:'A table for one',waiting:'Ready to order',serving:'On its way',eating:'Enjoying a treat',leaving:'Thank you! +2'}[visit.state]||'',p.x,p.y-40);}});
       if(visit.state==='dirty'){const p=center(table);g.fillStyle='#faf5e8';g.beginPath();g.ellipse(p.x,p.y-5,12,6,0,0,7);g.fill();}
     }
-    if(service.waiter){const job=service.waiter,table=items.find(f=>f.id===job.table);if(table){const p=center(table);g.fillStyle='#f9f2dd';g.fillRect(p.x-40,p.y-68,80,20);g.fillStyle='#43543f';g.font='12px sans-serif';g.textAlign='center';g.fillText(job.task==='serve'?'Serving…':'Clearing…',p.x,p.y-54);}}
+    if(service.waiter){const job=service.waiter,table=items.find(f=>f.id===job.table),counter=items.find(f=>f.type==='counter'&&!f.boxed);if(table&&counter){const from=neoCafeRoute(items,counter),to=neoCafeRoute(items,table);if(from&&to){const route=[...from.slice().reverse(),...to.slice(1)],phase=still?1:Math.max(0,Math.min(1,(Date.now()-job.start)/(job.until-job.start))),k=phase*(route.length-1),a=center(route[Math.floor(k)]),b=center(route[Math.min(route.length-1,Math.ceil(k))]),p={x:a.x+(b.x-a.x)*(k%1),y:a.y+(b.y-a.y)*(k%1)};layers.push({y:p.y,draw:()=>{g.save();g.translate(p.x,p.y);g.scale(1.1,1.1);waiterCat.state='walking';waiterCat.walk=still?0:t/130;waiterCat.walkAmt=still?0:1;waiterCat.face=b.x<a.x?-1:1;drawCat(g,waiterCat,true);g.fillStyle='#f7f0dc';g.fillRect(-10,-3,20,15);g.fillStyle='#78957c';g.fillRect(-8,-1,16,3);if(job.task==='serve'){g.fillStyle='#f9f3df';g.beginPath();g.ellipse(16,-10,13,5,0,0,7);g.fill();g.fillStyle='#bc905d';g.fillRect(11,-16,10,5);}g.restore();}});}}}
+
     }
     layers.sort((a,b)=>a.y-b.y);for(const l of layers)l.draw();
     if(ghost&&selected){g.strokeStyle=neoCafeCanPlace(items,selected.id,ghost.x,ghost.y)?'#477354':'#b55b49';g.lineWidth=4;g.strokeRect(42+ghost.x*80,122+ghost.y*80,76,76);}

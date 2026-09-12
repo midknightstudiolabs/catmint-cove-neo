@@ -1412,6 +1412,24 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .neo-story .neo-story-x:hover{background:#e2e8d5;color:#365b42}
 .neo-story .neo-story-x:active{background:#d7e0cc}
 .neo-story .neo-story-x:focus-visible{outline:3px solid #789578;outline-offset:3px}
+/* Room-first café prototype: tools open over the room, not below it. */
+#neo-homestead.cafe-full-room{inset:12px!important;transform:none!important;width:auto!important;max-width:none!important;height:calc(100dvh - 24px);max-height:none!important;display:flex;flex-direction:column;overflow:hidden;padding:16px;background:#f8f1de}
+#neo-homestead.cafe-full-room[hidden]{display:none}
+.cafe-full-room>.kicker,.cafe-full-room>p,.cafe-full-room>.homestead-stock{display:none}
+.cafe-full-room>h2{margin:0 55px 8px 0;font-size:24px}
+.cafe-full-room>.homestead-cafe-room{flex:1;min-height:0;display:flex;flex-direction:column;background:#e9ddc2;margin:8px 0;padding:4px;border-radius:16px;overflow:hidden}
+.cafe-full-room .homestead-room-art{flex:1;min-height:0;max-height:none!important;width:100%!important;object-fit:contain}
+.cafe-full-room .homestead-cafe-room>p{margin:3px 8px;font-size:13px}
+.cafe-full-room>.btn{align-self:flex-start;font-size:12px;min-height:32px;margin:2px}
+.cafe-bottom-nav{display:flex;gap:8px;justify-content:center;padding-top:8px}
+.cafe-bottom-nav .btn{flex:1;min-height:46px}
+.cafe-full-room .cafe-drawer{position:absolute;z-index:40;bottom:72px;left:12px;right:12px;max-height:65%;overflow:auto;padding:18px;background:#fff9e9;border:1px solid #cbd4bb;border-radius:20px;box-shadow:0 10px 30px #42523e30}
+.cafe-full-room .cafe-drawer[hidden]{display:none}
+@media(max-width:600px){#neo-homestead.cafe-full-room{inset:0!important;height:100dvh;border-radius:0;padding:10px}.cafe-room-tools{gap:4px;font-size:11px}.cafe-room-tools span{display:none}}
+.cafe-full-room>.homestead-cafe-room{position:relative}
+.cafe-full-room .cafe-room-tools{position:absolute;top:28px;left:8px;z-index:2;background:#faf4e4e8;border-radius:12px;padding:6px}
+.cafe-full-room .homestead-room-art{height:100%!important;align-self:center}
+.cafe-full-room .cafe-room-tools span{display:none}
 </style>
 
 <div id="app">
@@ -18966,6 +18984,16 @@ function neoOpenHomestead(kind){
   const n=garden?h.plots.length:h.tables,max=garden?8:5,cost=garden?100+(n-4)*75:150+(n-3)*100;
   if(n<max){const expand=document.createElement('button');expand.className='btn';expand.textContent=`Add ${garden?'a garden patch':'a table'} · ${cost} shells`;expand.disabled=G.shells<cost;expand.onclick=()=>{if(neoExpandHomestead(kind))neoOpenHomestead(kind);};sheet.append(expand);}
   const other=document.createElement('button');other.className='btn';other.textContent=garden?'Visit Catmint Café':'Visit Cove Garden';other.onclick=()=>neoOpenHomestead(garden?'cafe':'garden');sheet.append(other);
+  if(!garden){
+    const kitchen=sheet.querySelector('#neo-cafe-kitchen');kitchen.hidden=true;kitchen.classList.add('cafe-drawer');
+    const close=document.createElement('button');close.className='btn';close.textContent='Back to café';close.onclick=()=>kitchen.hidden=true;kitchen.prepend(close);
+    const nav=document.createElement('div');nav.className='cafe-bottom-nav';const cook=document.createElement('button');cook.className='btn';cook.textContent='Cookbook';cook.onclick=()=>kitchen.hidden=!kitchen.hidden;nav.append(cook);
+    const styles=sheet.querySelector('.homestead-style');styles.classList.add('cafe-drawer');styles.hidden=true;const design=document.createElement('button');design.className='btn';design.textContent='Decorate';design.onclick=()=>{styles.hidden=!styles.hidden;styles.open=true;};nav.append(design);
+    const backStyle=document.createElement('button');backStyle.className='btn';backStyle.textContent='Back to café';backStyle.onclick=()=>styles.hidden=true;styles.append(backStyle);
+    for(const b of [...sheet.children])if(b.tagName==='BUTTON'&&(b.textContent.startsWith('Add a table')||b.textContent==='Visit Cove Garden'))styles.append(b);
+    const collect=sheet.querySelector('[data-cafe-collect]');nav.append(collect);sheet.append(nav);
+    sheet.querySelector('.homestead-greeting')?.remove();sheet.querySelector('.homestead-cafe-room > button')?.remove();
+  }
   sheet.querySelector('.x').onclick=()=>{sheet.hidden=true;clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);};
   neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
 }
@@ -19004,12 +19032,13 @@ function neoPaintCafe(cv,h){
   select.onchange=()=>{selected=items.find(f=>f.id===select.value)||null;if(selected){editing=true;controls();status.textContent='Tap an empty tile to place your furniture for free.';}};
   function point(e){const r=cv.getBoundingClientRect();return{x:Math.floor(((e.clientX-r.left)*720/r.width-40)/80),y:Math.floor(((e.clientY-r.top)*560/r.height-120)/80)};}
   cv.style.touchAction='none';
-  cv.onpointerdown=e=>{const p=point(e),hit=items.find(f=>!f.boxed&&f.x===p.x&&f.y===p.y);if(!editing){if(hit?.type==='oven'){document.getElementById('neo-cafe-kitchen')?.scrollIntoView({block:'nearest',behavior:'smooth'});status.textContent='Choose a recipe below the room.';}if(hit?.type==='counter'){if(h.stoves.some(j=>j&&Date.now()>=j.ready))neoStockCounter();else status.textContent=h.counter?`${h.counter} treats ready for guests.`:'Cook a batch on the stove first.';}return;}
+  cv.onpointerdown=e=>{const p=point(e),hit=items.find(f=>!f.boxed&&f.x===p.x&&f.y===p.y);if(!editing){if(hit?.type==='oven'){document.getElementById('neo-cafe-kitchen').hidden=false;status.textContent='Choose a recipe below the room.';}if(hit?.type==='counter'){if(h.stoves.some(j=>j&&Date.now()>=j.ready))neoStockCounter();else status.textContent=h.counter?`${h.counter} treats ready for guests.`:'Cook a batch on the stove first.';}return;}
     if(hit)selected=hit;if(!selected)return;drag={id:e.pointerId};ghost=p;cv.setPointerCapture(e.pointerId);controls();};
   cv.onpointermove=e=>{if(drag?.id===e.pointerId)ghost=point(e);};
   cv.onpointerup=e=>{if(drag?.id!==e.pointerId)return;const p=point(e);drag=null;if(selected&&neoCafeCanPlace(items,selected.id,p.x,p.y)){selected.x=p.x;selected.y=p.y;selected.boxed=false;status.textContent='Placed. Your guests still have a clear path.';save();}else status.textContent='That tile blocks furniture or a walkway. Choose a green tile.';ghost=null;controls();};
   cv.onpointercancel=()=>{drag=null;ghost=null;};
   const originals=cats.filter(c=>!c.visitor).slice(0,5),guests=originals.map(c=>{const copy=new Cat({coatKey:c.coatKey,mascot:c.mascot,markSeed:c.markSeed,x:0,y:0});copy.state='loafing';copy.worn=[...(c.worn||[])];return copy;});
+  const waiterCat=new Cat({coatKey:originals[0]?.coatKey||'ginger',x:0,y:0});
   const center=p=>({x:80+p.x*80,y:160+p.y*80});
   function paint(t){
     if(!cv.isConnected||document.getElementById('neo-homestead').hidden)return;neoCafeFrame=requestAnimationFrame(paint);if(document.hidden||t-last<66)return;last=t;
@@ -19033,7 +19062,8 @@ function neoPaintCafe(cv,h){
       if(visit.state!=='dirty')layers.push({y:p.y,draw:()=>{g.save();g.translate(p.x,p.y+12);g.scale(1.35,1.35);c.state=distance<1?'walking':'loafing';c.walk=still?0:t/130;c.walkAmt=distance<1?1:0;c.face=b.x<a.x?-1:1;c.bob=0;drawCat(g,c,true);g.restore();g.fillStyle='#43543f';g.font='12px sans-serif';g.textAlign='center';g.fillText({arriving:'A table for one',waiting:'Ready to order',serving:'On its way',eating:'Enjoying a treat',leaving:'Thank you! +2'}[visit.state]||'',p.x,p.y-40);}});
       if(visit.state==='dirty'){const p=center(table);g.fillStyle='#faf5e8';g.beginPath();g.ellipse(p.x,p.y-5,12,6,0,0,7);g.fill();}
     }
-    if(service.waiter){const job=service.waiter,table=items.find(f=>f.id===job.table);if(table){const p=center(table);g.fillStyle='#f9f2dd';g.fillRect(p.x-40,p.y-68,80,20);g.fillStyle='#43543f';g.font='12px sans-serif';g.textAlign='center';g.fillText(job.task==='serve'?'Serving…':'Clearing…',p.x,p.y-54);}}
+    if(service.waiter){const job=service.waiter,table=items.find(f=>f.id===job.table),counter=items.find(f=>f.type==='counter'&&!f.boxed);if(table&&counter){const from=neoCafeRoute(items,counter),to=neoCafeRoute(items,table);if(from&&to){const route=[...from.slice().reverse(),...to.slice(1)],phase=still?1:Math.max(0,Math.min(1,(Date.now()-job.start)/(job.until-job.start))),k=phase*(route.length-1),a=center(route[Math.floor(k)]),b=center(route[Math.min(route.length-1,Math.ceil(k))]),p={x:a.x+(b.x-a.x)*(k%1),y:a.y+(b.y-a.y)*(k%1)};layers.push({y:p.y,draw:()=>{g.save();g.translate(p.x,p.y);g.scale(1.1,1.1);waiterCat.state='walking';waiterCat.walk=still?0:t/130;waiterCat.walkAmt=still?0:1;waiterCat.face=b.x<a.x?-1:1;drawCat(g,waiterCat,true);g.fillStyle='#f7f0dc';g.fillRect(-10,-3,20,15);g.fillStyle='#78957c';g.fillRect(-8,-1,16,3);if(job.task==='serve'){g.fillStyle='#f9f3df';g.beginPath();g.ellipse(16,-10,13,5,0,0,7);g.fill();g.fillStyle='#bc905d';g.fillRect(11,-16,10,5);}g.restore();}});}}}
+
     }
     layers.sort((a,b)=>a.y-b.y);for(const l of layers)l.draw();
     if(ghost&&selected){g.strokeStyle=neoCafeCanPlace(items,selected.id,ghost.x,ghost.y)?'#477354':'#b55b49';g.lineWidth=4;g.strokeRect(42+ghost.x*80,122+ghost.y*80,76,76);}

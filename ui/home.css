@@ -169,3 +169,21 @@
 .neo-story .neo-story-x:hover{background:#e2e8d5;color:#365b42}
 .neo-story .neo-story-x:active{background:#d7e0cc}
 .neo-story .neo-story-x:focus-visible{outline:3px solid #789578;outline-offset:3px}
+/* Room-first café prototype: tools open over the room, not below it. */
+#neo-homestead.cafe-full-room{inset:12px!important;transform:none!important;width:auto!important;max-width:none!important;height:calc(100dvh - 24px);max-height:none!important;display:flex;flex-direction:column;overflow:hidden;padding:16px;background:#f8f1de}
+#neo-homestead.cafe-full-room[hidden]{display:none}
+.cafe-full-room>.kicker,.cafe-full-room>p,.cafe-full-room>.homestead-stock{display:none}
+.cafe-full-room>h2{margin:0 55px 8px 0;font-size:24px}
+.cafe-full-room>.homestead-cafe-room{flex:1;min-height:0;display:flex;flex-direction:column;background:#e9ddc2;margin:8px 0;padding:4px;border-radius:16px;overflow:hidden}
+.cafe-full-room .homestead-room-art{flex:1;min-height:0;max-height:none!important;width:100%!important;object-fit:contain}
+.cafe-full-room .homestead-cafe-room>p{margin:3px 8px;font-size:13px}
+.cafe-full-room>.btn{align-self:flex-start;font-size:12px;min-height:32px;margin:2px}
+.cafe-bottom-nav{display:flex;gap:8px;justify-content:center;padding-top:8px}
+.cafe-bottom-nav .btn{flex:1;min-height:46px}
+.cafe-full-room .cafe-drawer{position:absolute;z-index:40;bottom:72px;left:12px;right:12px;max-height:65%;overflow:auto;padding:18px;background:#fff9e9;border:1px solid #cbd4bb;border-radius:20px;box-shadow:0 10px 30px #42523e30}
+.cafe-full-room .cafe-drawer[hidden]{display:none}
+@media(max-width:600px){#neo-homestead.cafe-full-room{inset:0!important;height:100dvh;border-radius:0;padding:10px}.cafe-room-tools{gap:4px;font-size:11px}.cafe-room-tools span{display:none}}
+.cafe-full-room>.homestead-cafe-room{position:relative}
+.cafe-full-room .cafe-room-tools{position:absolute;top:28px;left:8px;z-index:2;background:#faf4e4e8;border-radius:12px;padding:6px}
+.cafe-full-room .homestead-room-art{height:100%!important;align-self:center}
+.cafe-full-room .cafe-room-tools span{display:none}
