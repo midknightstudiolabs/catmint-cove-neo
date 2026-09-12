@@ -37,12 +37,24 @@ function neoExpandHomestead(kind){
 function neoCropArt(key,ready){
   return `<svg viewBox="0 0 120 70" aria-hidden="true" class="homestead-crop-art"><path fill="#bea17b" d="M8 49 60 39l52 10-52 17Z"/><path fill="#745b42" d="m17 48 43-7 43 7-43 10Z"/>${[32,60,88].map(x=>`<path stroke="#6d885b" stroke-width="3" d="M${x} 48V${ready?20:35}"/><path fill="#8fa770" d="M${x} 39q-20-2-14-15 15 1 14 15m0-5q17-2 15-15-15 2-15 15"/>${ready?key==='carrot'?`<path fill="#ce9060" d="m${x-5} 42 10 0-5 13Z"/>`:key==='pumpkin'?`<ellipse fill="#ca9862" cx="${x}" cy="43" rx="10" ry="8"/>`:`<circle fill="#ad777e" cx="${x-5}" cy="35" r="5"/><circle fill="#ad777e" cx="${x+4}" cy="39" r="5"/>`:''}`).join('')}</svg>`;
 }
+// Prototype service clock: bounded fixed steps, one shared waiter, persistent guests.
+function neoCafeService(h){return h.service ||= {clock:Date.now(),nextArrival:0,serial:0,visits:[],waiter:null};}
 function neoCafeSettle(now=Date.now()){
-  const h=neoHomestead();
-  if(!h.open){h.lastSale=now;return;}
-  const n=Math.min(h.counter,Math.max(0,Math.floor((now-h.lastSale)/60000)));
-  if(n){let left=n;for(const t of h.trays){const sold=Math.min(left,t.servings);t.servings-=sold;left-=sold;if(!t.servings)t.key=null;}h.counter-=n;h.earned+=n*2;h.served+=n;h.cafeXP+=n;h.lastSale+=n*60000;}
-  if(!h.counter)h.lastSale=now;
+ const h=neoHomestead(),v=neoCafeService(h);if(now<=v.clock)return;
+ // Away time pauses this prototype's restaurant, preventing duplicate idle payouts.
+ if(now-v.clock>30000){v.clock=now;return;}
+ const items=neoCafeFurniture(h),tables=items.filter(f=>f.type==='table'&&!f.boxed&&neoCafeRoute(items,f));
+ for(;v.clock+1000<=now;v.clock+=1000){const t=v.clock+1000;
+  for(const g of v.visits){if(g.state==='arriving'&&t>=g.until){g.state='waiting';}
+   if(g.state==='eating'&&t>=g.until){g.state='leaving';g.until=t+6000;h.earned+=2;h.served++;h.cafeXP++;}
+   if(g.state==='leaving'&&t>=g.until)g.state='dirty';}
+  if(v.waiter&&t>=v.waiter.until){const g=v.visits.find(g=>g.id===v.waiter.id);if(g){if(v.waiter.task==='serve'){g.state='eating';g.until=t+18000;}else g.state='done';}v.waiter=null;}
+  v.visits=v.visits.filter(g=>g.state!=='done');
+  if(!v.waiter){const dirty=v.visits.find(g=>g.state==='dirty'),waiting=v.visits.find(g=>g.state==='waiting');const tray=h.trays.find(t=>t.servings>0);
+   const g=dirty||(tray&&waiting);if(g){const task=dirty?'clear':'serve';if(task==='serve'){g.recipe=tray.key;tray.servings--;h.counter--;if(!tray.servings)tray.key=null;g.state='serving';}v.waiter={id:g.id,table:g.table,task,start:t,until:t+5000};}}
+  if(h.open&&h.counter>0&&t>=v.nextArrival){const table=tables.find(f=>!v.visits.some(g=>g.table===f.id));if(table){v.visits.push({id:++v.serial,table:table.id,state:'arriving',start:t,until:t+6000});v.nextArrival=t+12000;}}
+ }
+ h.lastSale=now;
 }
 function neoPlant(i,key){
   const h=neoHomestead(),c=COVE_CROPS[key];
@@ -72,7 +84,7 @@ function neoOpenHomestead(kind){
   if(!sheet){sheet=document.createElement('div');sheet.id='neo-homestead';sheet.className='sheet';document.getElementById('app').append(sheet);panels.homestead=sheet;}
   sheet.hidden=false;sheet.classList.toggle('cafe-full-room',!garden);
   const time=t=>Math.max(0,Math.ceil((t-Date.now())/1000));
-  sheet.innerHTML=`<button class="x" aria-label="Back to the Cove">×</button><div class="kicker">YOUR LITTLE CORNER OF THE COVE</div><h2>${garden?'Cove Garden':'Catmint Café'}</h2><p>${garden?'Grow café ingredients for less: 3 carrots cost 2 shells to grow, versus 4 to buy. Pumpkins and berries make bigger café batches. Keep your harvest for cooking, or sell spare crops for 1 shell each. Crops never wither.':'Choose what to cook and stock the counter. Guests arrive, take a seat, enjoy a treat and pay 2 shells. A visit takes one minute; stocked food also sells while you are away. Close the café to pause service while you cook or redecorate.'}</p><div class="homestead-stock">${Object.entries(COVE_CROPS).map(([k,c])=>`<span>${c.name}: <b>${h.stock[k]||0}</b></span>`).join('')}</div>`;
+  sheet.innerHTML=`<button class="x" aria-label="Back to the Cove">×</button><div class="kicker">YOUR LITTLE CORNER OF THE COVE</div><h2>${garden?'Cove Garden':'Catmint Café'}</h2><p>${garden?'Grow café ingredients for less: 3 carrots cost 2 shells to grow, versus 4 to buy. Pumpkins and berries make bigger café batches. Keep your harvest for cooking, or sell spare crops for 1 shell each. Crops never wither.':'Choose what to cook and stock the counter. Development preview · Guests seat themselves, a shared waiter serves and clears tables, and each finished meal earns 2 shells. Service pauses while away; cooking continues.'}</p><div class="homestead-stock">${Object.entries(COVE_CROPS).map(([k,c])=>`<span>${c.name}: <b>${h.stock[k]||0}</b></span>`).join('')}</div>`;
   if(garden){
     const grid=document.createElement('div');grid.className='homestead-grid';
     h.plots.forEach((p,i)=>{const card=document.createElement('article');card.className='homestead-patch';card.innerHTML=`<h3>Patch ${i+1}</h3>${neoCropArt(p?.key||'carrot',!!p&&!time(p.ready))}`;
