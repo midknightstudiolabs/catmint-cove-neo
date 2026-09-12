@@ -1430,6 +1430,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .cafe-full-room .cafe-room-tools{position:absolute;top:28px;left:8px;z-index:2;background:#faf4e4e8;border-radius:12px;padding:6px}
 .cafe-full-room .homestead-room-art{height:100%!important;align-self:center}
 .cafe-full-room .cafe-room-tools span{display:none}
+#neo-homestead.cafe-full-room>#cafe-guidance{display:block;margin:6px 0;text-align:center;font-size:14px;color:#43543f;min-height:20px}
+#cafe-next-action{background:#477354;color:#fff;border-color:#477354;font-weight:700}
+.cafe-full-room .cafe-room-tools{left:auto;right:8px;top:8px}
+.cafe-full-room .cafe-room-tools select,.cafe-full-room .cafe-room-tools [data-store]{display:none}
+.cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) select,.cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) [data-store]{display:inline-block}
 </style>
 
 <div id="app">
@@ -18949,6 +18954,16 @@ function neoStockCounter(slot){
 }
 let neoHomesteadTimer;
 let neoCafeFrame=0;
+function neoCafeGuide(sheet,h){
+ const guide=sheet.querySelector('#cafe-guidance'),button=sheet.querySelector('#cafe-next-action');if(!guide||!button)return;
+ const ready=h.stoves.find(j=>j&&Date.now()>=j.ready&&h.trays.some(t=>!t.servings||t.key===j.key)),cooking=h.stoves.filter(Boolean),free=h.stoves.includes(null);
+ let label='Cook a batch',message='Start with carrot bites. Your waiter handles seating, serving and clearing.';
+ if(ready){label='Serve ready food';message='Your batch is ready. Tap below to put it on the counter.';}
+ else if(cooking.length){const seconds=Math.max(0,Math.ceil((Math.min(...cooking.map(j=>j.ready))-Date.now())/1000));label=free?'Cook another batch':'View cooking';message=seconds?'Cooking · '+seconds+'s remaining. You can relax or decorate.':'Counters are full. Food will wait safely until there is space.';}
+ else if(h.counter){message=h.counter+' treats ready. Your waiter takes care of your guests.';}
+ if(!h.open)message='Café closed. Open it above when you are ready for guests.';
+ if(guide.textContent!==message)guide.textContent=message;button.textContent=label;
+}
 function neoOpenHomestead(kind){
   closeAllPanels();neoCafeSettle();save();clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);
   const h=neoHomestead(),garden=kind==='garden';
@@ -18987,15 +19002,15 @@ function neoOpenHomestead(kind){
   if(!garden){
     const kitchen=sheet.querySelector('#neo-cafe-kitchen');kitchen.hidden=true;kitchen.classList.add('cafe-drawer');
     const close=document.createElement('button');close.className='btn';close.textContent='Back to café';close.onclick=()=>kitchen.hidden=true;kitchen.prepend(close);
-    const nav=document.createElement('div');nav.className='cafe-bottom-nav';const cook=document.createElement('button');cook.className='btn';cook.textContent='Cookbook';cook.onclick=()=>kitchen.hidden=!kitchen.hidden;nav.append(cook);
+    const nav=document.createElement('div');nav.className='cafe-bottom-nav';const cook=document.createElement('button');cook.className='btn';cook.id='cafe-next-action';cook.textContent='Cook a batch';cook.onclick=()=>{const ready=h.stoves.findIndex(j=>j&&Date.now()>=j.ready&&h.trays.some(t=>!t.servings||t.key===j.key));if(ready>=0){neoStockCounter(ready);return;}kitchen.hidden=!kitchen.hidden;};nav.append(cook);
     const styles=sheet.querySelector('.homestead-style');styles.classList.add('cafe-drawer');styles.hidden=true;const design=document.createElement('button');design.className='btn';design.textContent='Decorate';design.onclick=()=>{styles.hidden=!styles.hidden;styles.open=true;};nav.append(design);
     const backStyle=document.createElement('button');backStyle.className='btn';backStyle.textContent='Back to café';backStyle.onclick=()=>styles.hidden=true;styles.append(backStyle);
     for(const b of [...sheet.children])if(b.tagName==='BUTTON'&&(b.textContent.startsWith('Add a table')||b.textContent==='Visit Cove Garden'))styles.append(b);
-    const collect=sheet.querySelector('[data-cafe-collect]');nav.append(collect);sheet.append(nav);
+    const collect=sheet.querySelector('[data-cafe-collect]');nav.append(collect);sheet.append(nav);const guide=document.createElement('p');guide.id='cafe-guidance';guide.setAttribute('aria-live','polite');sheet.insertBefore(guide,nav);neoCafeGuide(sheet,h);
     sheet.querySelector('.homestead-greeting')?.remove();sheet.querySelector('.homestead-cafe-room > button')?.remove();
   }
   sheet.querySelector('.x').onclick=()=>{sheet.hidden=true;clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);};
-  neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
+  neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;if(!garden)neoCafeGuide(sheet,h);const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
 }
 
 // Editable flat 2D café floor. Guest routes share the placement walkability map.
@@ -19026,7 +19041,7 @@ function neoPaintCafe(cv,h){
   const toolbar=document.createElement('div');toolbar.className='cafe-room-tools';toolbar.innerHTML='<button class="btn" data-edit>Arrange café</button><button class="btn" data-store disabled>Put away</button><select aria-label="Stored café furniture"><option value="">Stored furniture</option></select><span role="status">Tap the stove to cook, or the counter to stock treats.</span>';room.insertBefore(toolbar,cv);
   let editing=false,selected=null,drag=null,ghost=null,last=0;
   const status=toolbar.querySelector('span'),select=toolbar.querySelector('select');
-  function controls(){toolbar.querySelector('[data-edit]').textContent=editing?'Done arranging':'Arrange café';toolbar.querySelector('[data-store]').disabled=!editing||!selected||['oven','counter'].includes(selected.type)||(selected.type==='table'&&items.filter(f=>f.type==='table'&&!f.boxed).length<=1);select.innerHTML='<option value="">Stored furniture</option>'+items.filter(f=>f.boxed).map(f=>`<option value="${f.id}">${f.type==='table'?'Table & chair':f.type}</option>`).join('');}
+  function controls(){toolbar.querySelector('[data-edit]').setAttribute('aria-pressed',String(editing));toolbar.querySelector('[data-edit]').textContent=editing?'Done arranging':'Arrange café';toolbar.querySelector('[data-store]').disabled=!editing||!selected||['oven','counter'].includes(selected.type)||(selected.type==='table'&&items.filter(f=>f.type==='table'&&!f.boxed).length<=1);select.innerHTML='<option value="">Stored furniture</option>'+items.filter(f=>f.boxed).map(f=>`<option value="${f.id}">${f.type==='table'?'Table & chair':f.type}</option>`).join('');}
   toolbar.querySelector('[data-edit]').onclick=()=>{if(neoCafeService(h).visits.length){status.textContent='Close the café and let guests finish before rearranging.';return;}editing=!editing;selected=null;ghost=null;controls();status.textContent=editing?'Select furniture, then tap a free tile or drag. Keep the door and walkways clear.':'Your café layout is saved.';save();};
   toolbar.querySelector('[data-store]').onclick=()=>{if(toolbar.querySelector('[data-store]').disabled)return;selected.boxed=true;selected=null;ghost=null;save();controls();status.textContent='Stored safely. Choose it from Stored furniture to place it again.';};
   select.onchange=()=>{selected=items.find(f=>f.id===select.value)||null;if(selected){editing=true;controls();status.textContent='Tap an empty tile to place your furniture for free.';}};

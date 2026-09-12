@@ -187,3 +187,8 @@
 .cafe-full-room .cafe-room-tools{position:absolute;top:28px;left:8px;z-index:2;background:#faf4e4e8;border-radius:12px;padding:6px}
 .cafe-full-room .homestead-room-art{height:100%!important;align-self:center}
 .cafe-full-room .cafe-room-tools span{display:none}
+#neo-homestead.cafe-full-room>#cafe-guidance{display:block;margin:6px 0;text-align:center;font-size:14px;color:#43543f;min-height:20px}
+#cafe-next-action{background:#477354;color:#fff;border-color:#477354;font-weight:700}
+.cafe-full-room .cafe-room-tools{left:auto;right:8px;top:8px}
+.cafe-full-room .cafe-room-tools select,.cafe-full-room .cafe-room-tools [data-store]{display:none}
+.cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) select,.cafe-full-room .cafe-room-tools:has([data-edit][aria-pressed="true"]) [data-store]{display:inline-block}
