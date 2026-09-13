@@ -1393,6 +1393,20 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 .homestead-room-art{position:static!important;display:block;width:100%;height:auto;border-radius:14px}.homestead-crop-art{display:block;width:100%;max-width:150px;height:76px;margin:auto}.homestead-style{padding:14px;border:1px solid #d0d9bf;border-radius:16px}.homestead-style summary{cursor:pointer;min-height:44px;display:list-item}.homestead-style .btn{margin:4px;min-height:44px;text-transform:capitalize}.homestead-style [aria-pressed=true]{background:#477354;color:#fff}.homestead-greeting{min-height:44px;font-size:14px}.homestead-cafe-room>.btn{min-height:44px}
 @media(max-width:380px){#neo-homestead{padding:16px}.homestead-grid{gap:8px}.homestead-patch{padding:10px}.homestead-patch .btn{font-size:12px;padding:8px}.homestead-stock{font-size:12px}}
 
+#neo-memory{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);max-height:calc(100dvh - 150px);overflow:auto;padding:24px;background:#faf6e9;color:#43543f;border-radius:24px;box-sizing:border-box;z-index:45;overscroll-behavior:contain}
+#neo-memory[hidden]{display:none}#neo-memory h2{padding-right:35px}#neo-memory>.btn{margin:8px 6px 0 0;min-height:44px}
+.memory-grid-pick{display:grid;gap:10px;margin-top:14px}
+.memory-board{display:grid;gap:10px;margin:16px 0;justify-content:center}
+.memory-card{position:relative;width:70px;height:70px;perspective:600px;background:none;border:0;padding:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.memory-card .mc-inner{position:absolute;inset:0;transition:transform .35s ease;transform-style:preserve-3d}
+.memory-card.flipped .mc-inner,.memory-card.matched .mc-inner{transform:rotateY(180deg)}
+.memory-card .mc-face{position:absolute;inset:0;backface-visibility:hidden;border-radius:14px;display:flex;align-items:center;justify-content:center;border:1px solid #c9d8b9;background:#e6edda;font-size:26px;overflow:hidden}
+.memory-card .mc-front{background:#faf6e9;transform:rotateY(180deg)}
+.memory-card .mc-front canvas{width:100%;height:100%;display:block}
+.memory-card.matched .mc-face{border-color:#8fac8a;box-shadow:0 0 0 2px #c8dfb0 inset}
+.memory-card.matched .mc-back{background:#dfeacb}
+@media(max-width:420px){.memory-board{gap:7px}.memory-card{width:56px;height:56px}.memory-card .mc-face{font-size:19px;border-radius:11px}}
+
 /* Mobile finishing pass: cream surfaces, sage actions, comfortable touch targets. */
 #shopTabs{display:flex;flex-wrap:wrap;gap:6px}
 #shopTabs button,#shop .shop-actions button,#placeBar button{min-height:44px}
@@ -6805,7 +6819,7 @@ document.addEventListener("pointerdown", (e) => {
   }
   if (!anyPanelOpen()) return;
   if (_vig || scrim.classList.contains("on")) return;    // a modal/vignette is up over the panel — it owns dismissal; tapping it must NOT collapse the panel underneath (e.g. a Catdex coat note)
-  if (e.target.closest("#shop, #dex, #today, #neo-explore, #neo-homestead, #scrim")) return;   // interacting with the panel or a modal on top of it
+  if (e.target.closest("#shop, #dex, #today, #neo-explore, #neo-homestead, #neo-memory, #scrim")) return;   // interacting with the panel or a modal on top of it
   closeAllPanels();
   if (!e.target.closest("#actions")) e.stopPropagation(); // a dismiss tap — don't also pet a cat underneath
 }, true);
@@ -18942,6 +18956,7 @@ function neoBuildNavigation(){
   <button class="neo-destination" id="neo-go-cafe" disabled aria-label="Catmint Café — under development"><span>${neoUIIcon("cafe")}</span><b>Catmint Café</b><small>Under development · coming in a future release.</small></button>
   <button class="neo-destination" id="neo-go-garden"><span><img class="neo-ui-icon" src="art/icon-keepsake-garden.svg" alt="" width="36" height="36"></span><b>Cove Garden</b><small>Plant, grow and gather something good.</small></button>
   <button class="neo-destination" id="neo-go-rest"><span>${neoUIIcon("rest")}</span><b>Rainy retreat</b><small>No chores. Just rain and company.</small></button>
+  <button class="neo-destination" id="neo-go-memory"><span>${neoUIIcon("memory")}</span><b>Memory Lane</b><small>Match coats, one calm pair at a time.</small></button>
   </div>
   <details class="neo-feedback"><summary>Help shape the Cove</summary><p>Your feedback can help us make this little home better.</p><button class="btn" id="neo-playtest">Private playtest notebook</button></details>`;
   document.getElementById('app').append(sheet);panels.explore=sheet;
@@ -18951,6 +18966,7 @@ function neoBuildNavigation(){
   // Café development continues in the neo-catmint-cafe branch; saved progress is retained.
   document.getElementById('neo-go-garden').onclick=()=>neoOpenHomestead('garden');
   document.getElementById('neo-go-rest').onclick=()=>{closeAllPanels();document.getElementById('restBtn').click();};
+  document.getElementById('neo-go-memory').onclick=()=>{closeAllPanels();openMemoryLane();};
   document.getElementById('neo-playtest').onclick=neoPlaytest;
   panels.dex.querySelector('h2').textContent='Catdex';panels.shop.querySelector('h2').textContent='Tideline Shop';
 }
@@ -19133,6 +19149,118 @@ function neoOpenHomestead(kind){
   const other=document.createElement('button');other.className='btn';other.textContent=garden?'Catmint Café · Under development':'Visit Cove Garden';other.disabled=garden;other.onclick=()=>neoOpenHomestead(garden?'cafe':'garden');sheet.append(other);
   sheet.querySelector('.x').onclick=()=>{sheet.hidden=true;clearInterval(neoHomesteadTimer);cancelAnimationFrame(neoCafeFrame);};
   neoHomesteadTimer=setInterval(()=>{if(sheet.hidden){clearInterval(neoHomesteadTimer);return;}if(document.hidden)return;const before=h.served;neoCafeSettle();if(before!==h.served){save();const trays=sheet.querySelector('#neo-cafe-trays');if(trays)trays.innerHTML=h.trays.map((t,i)=>`<span>Counter ${i+1}: <b>${t.servings?COVE_RECIPES[t.key].name+' · '+t.servings:'Empty'}</b></span>`).join('');const count=sheet.querySelector('.homestead-cafe-room > p');if(count)count.textContent=h.counter+' treats on the counter · '+h.served+' served';const collect=sheet.querySelector('[data-cafe-collect]');if(collect){collect.textContent='Collect '+h.earned+' shells';collect.disabled=!h.earned;}}for(const b of sheet.querySelectorAll('[data-ready]')){const seconds=time(+b.dataset.ready);b.disabled=seconds>0;b.textContent=seconds?`${garden?'Growing':'Cooking'} · ${seconds}s`:garden?'Harvest':'Stock the counter';}},1000);
+}
+
+/* ---------- Memory Lane: a calm coat-matching activity, no clock, no fail state ---------- */
+const MEMORY_GRIDS = [
+  { key: "cozy",      cols: 3, rows: 2, pairs: 3, label: "Cozy",      sub: "3 pairs · a quiet minute" },
+  { key: "curious",   cols: 4, rows: 3, pairs: 6, label: "Curious",   sub: "6 pairs · a proper sit-down" },
+  { key: "whiskered", cols: 4, rows: 4, pairs: 8, label: "Whiskered", sub: "8 pairs · for the completionists" },
+];
+// A new save has few discovered coats — top the pool up with friendly commons so the
+// board is never thin, without ever showing a coat as "known" that the player hasn't met.
+const MEMORY_FALLBACK = ["tuxedo","ginger","greytab","browntab","greywhite","black","white","orangewhite","calico","russian","siamese","silver"];
+function memoryPool() {
+  const known = Object.keys((G && G.dex) || {}).filter(k => COAT_BY_KEY[k]);
+  const pool = known.slice();
+  for (const k of MEMORY_FALLBACK) if (!pool.includes(k) && COAT_BY_KEY[k]) pool.push(k);
+  return pool;
+}
+function memoryShuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0;[a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+let _memoryGrid = null, _memoryCards = [], _memoryFlipped = [], _memoryBusy = false, _memoryMoves = 0, _memoryMatches = 0;
+function openMemoryLane(gridKey) {
+  closeAllPanels();
+  let sheet = document.getElementById("neo-memory");
+  if (!sheet) { sheet = document.createElement("div"); sheet.id = "neo-memory"; sheet.className = "sheet"; document.getElementById("app").append(sheet); panels.memory = sheet; }
+  sheet.hidden = false;
+  if (gridKey) startMemoryRound(sheet, gridKey); else renderMemoryPicker(sheet);
+}
+function renderMemoryPicker(sheet) {
+  const best = G.memoryBest || {};
+  sheet.innerHTML = `<button class="x" aria-label="Back to the Cove">×</button><div class="kicker">A QUIET GAME OF PAIRS</div><h2>Memory Lane</h2><p class="muted">Flip two at a time. No clock, no penalty for a wrong guess — just you, remembering which cat was where. Cards are drawn from cats you've actually met.</p><div class="memory-grid-pick"></div>`;
+  const wrap = sheet.querySelector(".memory-grid-pick");
+  for (const g of MEMORY_GRIDS) {
+    const rec = best[g.key];
+    const b = document.createElement("button"); b.className = "neo-destination";
+    b.innerHTML = `<b>${g.label}</b><small>${g.sub}${rec ? " · your best " + rec + " moves" : ""}</small>`;
+    b.onclick = () => startMemoryRound(sheet, g.key);
+    wrap.append(b);
+  }
+  sheet.querySelector(".x").onclick = () => { sheet.hidden = true; };
+}
+function startMemoryRound(sheet, gridKey) {
+  const grid = MEMORY_GRIDS.find(g => g.key === gridKey); if (!grid) return;
+  _memoryGrid = grid; _memoryFlipped = []; _memoryBusy = false; _memoryMoves = 0; _memoryMatches = 0;
+  const pool = memoryShuffle(memoryPool());
+  const keys = []; for (let i = 0; i < grid.pairs; i++) keys.push(pool[i % pool.length]);
+  let cards = [];
+  keys.forEach((k, i) => { cards.push({ key: k, pairId: i, matched: false }); cards.push({ key: k, pairId: i, matched: false }); });
+  _memoryCards = memoryShuffle(cards);
+  renderMemoryBoard(sheet);
+}
+function renderMemoryBoard(sheet) {
+  const grid = _memoryGrid;
+  const best = G.memoryBest || {};
+  sheet.innerHTML = `<button class="x" aria-label="Back to the Cove">×</button><div class="kicker">MEMORY LANE · ${grid.label.toUpperCase()}</div><h2>Match the pairs</h2><p class="muted">Moves: <b id="mem-moves">0</b>${best[grid.key] ? " · your best: " + best[grid.key] + " moves" : ""}</p><div class="memory-board" id="mem-board" style="grid-template-columns:repeat(${grid.cols},1fr)"></div><button class="btn" id="mem-change">Change round</button>`;
+  const board = sheet.querySelector("#mem-board");
+  _memoryCards.forEach((card, idx) => {
+    const btn = document.createElement("button"); btn.className = "memory-card"; btn.type = "button";
+    btn.setAttribute("aria-label", "Face-down card");
+    btn.innerHTML = `<span class="mc-inner"><span class="mc-face mc-back" aria-hidden="true">🐾</span><span class="mc-face mc-front"><canvas width="120" height="120"></canvas></span></span>`;
+    btn.onclick = () => flipMemoryCard(sheet, idx);
+    board.append(btn);
+    miniCat(btn.querySelector("canvas"), card.key, 2, "loafing", false, 1.7);
+  });
+  sheet.querySelector(".x").onclick = () => { sheet.hidden = true; };
+  sheet.querySelector("#mem-change").onclick = () => renderMemoryPicker(sheet);
+}
+function flipMemoryCard(sheet, idx) {
+  if (_memoryBusy) return;
+  const card = _memoryCards[idx]; if (card.matched) return;
+  if (_memoryFlipped.includes(idx)) return;
+  const cardsEl = sheet.querySelectorAll(".memory-card");
+  cardsEl[idx].classList.add("flipped");
+  _memoryFlipped.push(idx);
+  ensureAudio(); tone(660, 0.08, "sine", 0.05);
+  if (_memoryFlipped.length === 2) {
+    _memoryBusy = true; _memoryMoves++;
+    const movesEl = sheet.querySelector("#mem-moves"); if (movesEl) movesEl.textContent = _memoryMoves;
+    const [a, b] = _memoryFlipped;
+    if (_memoryCards[a].key === _memoryCards[b].key && _memoryCards[a].pairId === _memoryCards[b].pairId) {
+      _memoryCards[a].matched = _memoryCards[b].matched = true;
+      cardsEl[a].classList.add("matched"); cardsEl[b].classList.add("matched");
+      _memoryMatches++;
+      tone(880, 0.12, "sine", 0.06); tone(1174, 0.14, "sine", 0.05, 0.07);
+      _memoryFlipped = []; _memoryBusy = false;
+      if (_memoryMatches === _memoryGrid.pairs) setTimeout(() => finishMemoryRound(sheet), 550);
+    } else {
+      setTimeout(() => {
+        cardsEl[a].classList.remove("flipped"); cardsEl[b].classList.remove("flipped");
+        tone(300, 0.14, "sine", 0.04);
+        _memoryFlipped = []; _memoryBusy = false;
+      }, 700);
+    }
+  }
+}
+function finishMemoryRound(sheet) {
+  const grid = _memoryGrid;
+  G.memoryBest = G.memoryBest || {};
+  const prevBest = G.memoryBest[grid.key];
+  const improved = !prevBest || _memoryMoves < prevBest;
+  if (improved) G.memoryBest[grid.key] = _memoryMoves;
+  const reward = grid.pairs * 3 + (improved && prevBest ? 4 : 0);
+  G.shells = (G.shells || 0) + reward;
+  save(); syncHud();
+  sfx("reveal");
+  const flavor = COAT_BY_KEY[pick(_memoryCards).key];
+  sheet.innerHTML = `<button class="x" aria-label="Back to the Cove">×</button><div class="kicker">${grid.label.toUpperCase()} · CLEARED</div><h2>${improved && prevBest ? "A new personal best!" : "Cleared, calmly."}</h2><p>${_memoryMoves} moves. +${reward} shells.</p>${flavor && flavor.note ? `<p class="muted">"${flavor.note}"</p>` : ""}<button class="btn" id="mem-again">Play again</button><button class="btn" id="mem-other">Change round</button>`;
+  sheet.querySelector(".x").onclick = () => { sheet.hidden = true; };
+  sheet.querySelector("#mem-again").onclick = () => startMemoryRound(sheet, grid.key);
+  sheet.querySelector("#mem-other").onclick = () => renderMemoryPicker(sheet);
 }
 
 // Editable flat 2D café floor. Guest routes share the placement walkability map.
