@@ -2469,8 +2469,8 @@ details.garden-list{margin:12px 0}details.garden-list>summary{cursor:pointer;fon
 
 <script src="ui/product-analytics.js?v=1"></script>
 <script src="ui/memory-rewards.js?v=1"></script><script src="ui/endless-rewards.js?v=1"></script><link rel="stylesheet" href="ui/little-matches.css?v=14"><script src="ui/little-matches.js?v=18"></script>
-<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><script src="ui/cafe-engine.js?v=28"></script><script src="ui/cafe-scene.js?v=36"></script><script src="ui/cafe-kiosk.js?v=71"></script>
-<script src="ui/wishing-well.js?v=1"></script>
+<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=3"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><script src="ui/cafe-engine.js?v=28"></script><script src="ui/cafe-scene.js?v=36"></script><script src="ui/cafe-kiosk.js?v=71"></script><script src="ui/resort-engine.js?v=3"></script><script src="ui/resort-scene.js?v=3"></script><script src="ui/resort-view.js?v=3"></script>
+<link rel="stylesheet" href="ui/cove-stories.css?v=1"><script src="ui/cove-stories.js?v=1"></script><script src="ui/wishing-well.js?v=1"></script>
 <script>
 (() => {
 "use strict";
@@ -3016,6 +3016,7 @@ function save() {
   if (_dead || !G) return;
   try {
     if(G.cafe?.unlocked) CoveCafeEngine.settle(G,Date.now());
+    if(G.resort) CoveResortEngine.settle(G,Date.now());
     advanceCoveDay();
     G.lastSeen = Date.now();
     G.ratePerSec = aggregateRate();
@@ -7767,7 +7768,7 @@ const panels = {
   today: document.getElementById("today"),
 };
 function anyPanelOpen() { for (const k in panels) if (!panels[k].hidden) return true; return false; }
-function closeAllPanels() { globalThis.CoveCafeView?.stop(); for (const k in panels) panels[k].hidden = true; stopDressLoop(); _dressWorn = null; }
+function closeAllPanels() { globalThis.CoveCafeView?.stop(); globalThis.CoveResortView?.stop(); for (const k in panels) panels[k].hidden = true; stopDressLoop(); _dressWorn = null; }
 function neoSheetFooter(sheet){
  if(!sheet||sheet.querySelector(':scope > .cove-sheet-footer'))return;
  const exit=sheet.querySelector('.x');if(!exit)return;
@@ -7842,7 +7843,7 @@ document.addEventListener("pointerdown", (e) => {
   }
   if (!anyPanelOpen()) return;
   if (_vig || scrim.classList.contains("on")) return;    // a modal/vignette is up over the panel — it owns dismissal; tapping it must NOT collapse the panel underneath (e.g. a Catdex coat note)
-  if (e.target.closest("#shop, #dex, #today, #neo-explore, #neo-homestead, #cafe-kiosk, #wishwell, #scrim")) return;   // interacting with the panel or a modal on top of it
+  if (e.target.closest("#shop, #dex, #today, #neo-explore, #neo-homestead, #cafe-kiosk, #neo-resort, .cove-comic, #wishwell, #scrim")) return;   // interacting with the panel or a modal on top of it
   closeAllPanels();
   if (!e.target.closest("#actions")) e.stopPropagation(); // a dismiss tap — don't also pet a cat underneath
 }, true);
@@ -8230,6 +8231,7 @@ const COLD = [
 ];
 
 function startColdOpen() {
+  if(!G.tutorialDone && !["complete","skipped"].includes(G.coveStories?.entries?.["cove-001"]?.status)){CoveStories.open("cove-001",neoStoryAdapter(),startColdOpen);return;}
   if (G.tutorialDone) return;
   if(!G.firstHelloAt){G.firstHelloAt=Date.now();save();}
   const i = Math.min(Math.max(G.coldStep | 0, 0), COLD.length - 1);
@@ -8518,7 +8520,7 @@ document.getElementById("catPill").addEventListener("click", () => {            
 
 /* rest / rainy-day mode wiring */
 document.getElementById("restBtn").addEventListener("click", () => { if (!restMode) { syncRestPanelUI(); openRestPanel(); } });
-document.getElementById("festBtn").addEventListener("click", openFestPicker);   // openFestPicker() already no-ops mid-rest/mid-race
+document.getElementById("festBtn").addEventListener("click", () => { if(restMode || festMode || !festUnlocked())return openFestPicker(); CoveStories.open("festival-001",neoStoryAdapter(),()=>openFestPicker()); });   // openFestPicker() already no-ops mid-rest/mid-race
 document.getElementById("restRain").addEventListener("change", e => {
   restOpts.rain = e.target.checked;
   if (restBus && actx) restBus.gain.linearRampToValueAtTime(muted || !restOpts.rain ? 0.0001 : 0.9, actx.currentTime + 0.6);
@@ -21198,6 +21200,7 @@ function neoRenderJournal(){
   }
   document.getElementById('neo-journal-photo').onclick=()=>{closeAllPanels();document.getElementById('photoBtn').click();};
   document.getElementById('neo-journal-cats').onclick=()=>togglePanel('dex');
+  CoveStories.journal(root,neoStoryAdapter());
 }
 function neoOpenExplore(){
  window.CoveAnalytics?.emit("menu_opened",{entity:"Activities"});
@@ -21224,6 +21227,7 @@ function neoBuildNavigation(){
   <button class="neo-destination" id="neo-go-wishwell"><span>${neoUIIcon("wishwell")}</span><b>Wishing Well<i class="neo-tile-badge" id="neo-wish-badge" hidden></i></b><small>One wish a day. Always something.</small></button>
   <button class="neo-destination" id="neo-go-cafe"><span>${neoUIIcon("cafe")}</span><b>Catmint Café</b><small>Your seaside coffee stop · grow, brew, watch.</small></button>
   <button class="neo-destination" id="neo-go-garden"><span><img class="neo-ui-icon" src="art/icon-keepsake-garden.svg" alt="" width="36" height="36"></span><b>Cove Garden</b><small>Plant, grow and gather something good.</small></button>
+  <button class="neo-destination" id="neo-go-resort"><span><img class="neo-ui-icon" src="art/icon-keepsake-homecoming.svg" alt="" width="36" height="36"></span><b>Cove Resort</b><small>Open cottages, look inside, and let guests make themselves at home.</small></button>
   <button class="neo-destination" id="neo-go-friends"><span><img class="neo-ui-icon" src="art/icon-keepsake-cove-friends.svg" alt="" width="36" height="36"></span><b>Cove Friends<i class="neo-tile-badge" id="neo-friends-badge" hidden></i></b><small>Visit, send love, play a friendly match.</small></button>
   <button class="neo-destination" id="neo-go-rest"><span>${neoUIIcon("rest")}</span><b>Rainy retreat</b><small>No chores. Just rain and company.</small></button>
   </div>
@@ -21233,8 +21237,9 @@ function neoBuildNavigation(){
   document.getElementById('neo-go-festival').onclick=()=>{closeAllPanels();document.getElementById('festBtn').click();};
   document.getElementById('neo-go-adventure').onclick=()=>{closeAllPanels();if(activeAdvs().length)openAdventureBoard();else openAdventurePicker();};
   neoAdvChipSync();
-  document.getElementById('neo-go-cafe').onclick=()=>neoOpenHomestead('cafe');
+  document.getElementById('neo-go-cafe').onclick=()=>{closeAllPanels();CoveStories.open('cafe-001',neoStoryAdapter(),()=>neoOpenHomestead('cafe'));};
   document.getElementById('neo-go-garden').onclick=()=>neoOpenHomestead('garden');
+  document.getElementById('neo-go-resort').onclick=()=>neoOpenResort();
   document.getElementById('neo-go-rest').onclick=()=>{closeAllPanels();document.getElementById('restBtn').click();};
   document.getElementById('neo-go-wishwell').onclick=()=>neoOpenWishingWell();
   neoWishBadgeSync();
@@ -22074,6 +22079,21 @@ function neoOpenCoffeeKiosk(){
   });
   neoScheduleCafeReminder();
 }
+// Guest drawings are presentation-only copies, cached outside the resident roster.
+const neoGuestDrawCache=new Map();
+function neoDrawStoryGuest(ctx,m,x,y,scale,t){
+ const key=[m.coatKey,m.markSeed,m.mascot,m.age].join('|');let guest=neoGuestDrawCache.get(key);
+ if(!guest){guest=new Cat({coatKey:m.coatKey,markSeed:m.markSeed,mascot:!!m.mascot,star:1,bornAt:m.age==='kitten'?Date.now():Date.now()-KITTEN_MS*3,x:0,y:0});neoGuestDrawCache.set(key,guest);if(neoGuestDrawCache.size>80)neoGuestDrawCache.delete(neoGuestDrawCache.keys().next().value);}
+ guest.worn=[];guest.state=m.pose||'loafing';guest.trotting=false;guest.walkAmt=guest.state==='exploring'?.65:0;guest.walk=t/130;guest.face=1;guest.stateT=t/1000;guest.bob=t/900;guest.tail=t/650;guest.blink=3;
+ ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);drawCat(ctx,guest,true);ctx.restore();
+}
+function neoStoryAdapter(){return {game:()=>G,save,cat:neoDrawStoryGuest};}
+function neoOpenResort(){
+ closeAllPanels();CoveStories.open('resort-001',neoStoryAdapter(),()=>{
+ CoveResortEngine.init(G,Date.now());save();
+ CoveResortView.open({game:()=>G,close:()=>{closeAllPanels();save();},save,register:p=>panels.resort=p,cat:neoDrawStoryGuest});});
+}
+
 syncNavH();
 setInterval(neoGardenWatch,5000);setTimeout(neoGardenWatch,2500);   // ripe-crop heads-up
 setInterval(analyticsAskTick,6000);
