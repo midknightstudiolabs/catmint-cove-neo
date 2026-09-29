@@ -12,7 +12,7 @@ const {chromium}=require(process.env.PLAYWRIGHT_PATH||'D:/Codex/2026-09-23/brain
  await page.locator('#ts-go').click({timeout:15000});
  await page.waitForTimeout(900);
  if(await page.locator('#own-skip').isVisible())await page.locator('#own-skip').click();
- await page.locator('.comic-next').click();await page.locator('.comic-next').click();await page.locator('.comic-next').click();
+ await page.locator('.comic-pause').click();await page.waitForTimeout(4200);assert.equal(await page.locator('.comic-panels figure').count(),1);await page.locator('.comic-pause').click();await page.locator('.comic-next').waitFor({state:'visible',timeout:20000});assert.equal(await page.locator('.comic-panels figure').count(),4);await page.waitForTimeout(900);
  await page.screenshot({path:'../../outputs/resort-before-20260929/comic-test.png'});
  await page.locator('.comic-next').click();await page.locator('#hintX').click();
  await page.getByRole('button',{name:'Welcome them in'}).click();
