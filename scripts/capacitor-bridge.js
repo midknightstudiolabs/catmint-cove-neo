@@ -143,11 +143,22 @@
   (function initIAP() {
     var RC = P.Purchases;
     var plat = (Cap.getPlatform && Cap.getPlatform()) || "";
-    var RC_KEY = plat === "ios" ? REVENUECAT_IOS_KEY : REVENUECAT_ANDROID_KEY;
+    var RC_KEY = plat === "ios" ? REVENUECAT_IOS_KEY : plat === "android" ? REVENUECAT_ANDROID_KEY : "";
     if (!RC || !RC_KEY) return;   // no plugin / no key for this platform → game simulates purchases
 
-    try { RC.configure({ apiKey: RC_KEY }); }
-    catch (e) { return; }
+    // One bridge per document; native isConfigured also covers WebView reloads.
+    if (window.CoveNative.iap) return;
+    var ready = Promise.resolve().then(function () {
+      return RC.isConfigured();
+    }).then(function (state) {
+      if (!state || !state.isConfigured) return RC.configure({ apiKey: RC_KEY });
+    });
+    // Keep native billing selected even while initializing or if initialization
+    // fails: never fall through to the web simulated-purchase path.
+    ready.catch(function () { console.warn("Catmint Cove billing could not initialize."); });
+    function call(method, args) {
+      return ready.then(function () { return RC[method](args); });
+    }
 
     var products = null;   // { <productId>: PurchasesStoreProduct }
 
@@ -182,14 +193,14 @@
     }
 
     // catalogue — needed to purchase, and gives us localized price strings
-    RC.getProducts({ productIdentifiers: COVE_PRODUCTS, type: "NON_SUBSCRIPTION" })
+    call("getProducts", { productIdentifiers: COVE_PRODUCTS, type: "NON_SUBSCRIPTION" })
       .then(function (res) {
         products = products || {};
         (res && res.products || []).forEach(function (p) { products[p.identifier] = p; });
         push(null);
       })
       .catch(function () {});
-    RC.getProducts({ productIdentifiers: COVE_SUBS, type: "SUBSCRIPTION" })
+    call("getProducts", { productIdentifiers: COVE_SUBS, type: "SUBSCRIPTION" })
       .then(function (res) {
         products = products || {};
         (res && res.products || []).forEach(function (p) { products[String(p.identifier).split(":")[0]] = p; });
@@ -198,7 +209,7 @@
       .catch(function () {});
 
     function sync() {
-      return RC.getCustomerInfo().then(function (r) {
+      return call("getCustomerInfo").then(function (r) {
         var info = r && r.customerInfo;
         push(info);
         return ownedFrom(info);
@@ -206,12 +217,12 @@
     }
 
     // authoritative refresh: launch, every resume, and whenever RC pushes an update
-    try { RC.addCustomerInfoUpdateListener(function (info) { push(info); }); } catch (e) {}
+    call("addCustomerInfoUpdateListener", function (info) { push(info); }).catch(function () {});
     try { P.App && P.App.addListener("resume", function () { sync().catch(function () {}); }); } catch (e) {}
     sync().catch(function () {});
 
     function purchase(prod, productId) {
-      return RC.purchaseStoreProduct({ product: prod }).then(
+      return call("purchaseStoreProduct", { product: prod }).then(
         function (r) { try { push(r && r.customerInfo); } catch (e) {} return { ok: true, productId: productId }; },
         function (e) {
           var cancelled = !!(e && (e.userCancelled === true || String(e.code) === "1"));
@@ -227,7 +238,7 @@
         var prod = products && products[productId];
         if (prod) return purchase(prod, productId);
         // catalogue not ready / missing that id — fetch just this one, then buy
-        return RC.getProducts({ productIdentifiers: [productId], type: COVE_SUBS.indexOf(productId) !== -1 ? "SUBSCRIPTION" : "NON_SUBSCRIPTION" })
+        return call("getProducts", { productIdentifiers: [productId], type: COVE_SUBS.indexOf(productId) !== -1 ? "SUBSCRIPTION" : "NON_SUBSCRIPTION" })
           .then(function (res) {
             var p = (res && res.products || [])[0];
             if (!p) return { ok: false, reason: "unavailable" };
@@ -237,7 +248,7 @@
           .catch(function () { return { ok: false, reason: "unavailable" }; });
       },
       restore: function () {
-        return RC.restorePurchases().then(function (r) {
+        return call("restorePurchases").then(function (r) {
           var info = r && r.customerInfo;
           push(info);
           return ownedFrom(info).concat(Object.keys(subsFrom(info)));
