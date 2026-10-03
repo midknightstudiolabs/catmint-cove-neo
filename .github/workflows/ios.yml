@@ -207,6 +207,17 @@ jobs:
             MARKETING_VERSION="${{ steps.ver.outputs.name }}" \
             CURRENT_PROJECT_VERSION="${{ steps.ver.outputs.build }}"
 
+      - name: Prepare embedded frameworks for distribution signing
+        if: ${{ steps.keys.outputs.have == 'true' }}
+        run: |
+          # The unsigned archive skips CodeSignOnCopy. Replace vendor signatures
+          # invalidated by Xcode's binary processing before distribution export.
+          APP="$RUNNER_TEMP/App.xcarchive/Products/Applications/App.app"
+          for FRAMEWORK in "$APP"/Frameworks/*.framework; do
+            [ -d "$FRAMEWORK" ] || continue
+            /usr/bin/codesign --force --sign - --timestamp=none "$FRAMEWORK"
+          done
+
       - name: Export .ipa
         if: ${{ steps.keys.outputs.have == 'true' }}
         run: |
@@ -227,6 +238,19 @@ jobs:
             -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${{ secrets.ASC_KEY_ID }}.p8" \
             -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Verify exported app and embedded signatures
+        if: ${{ steps.keys.outputs.have == 'true' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/signature-check"
+          unzip -q "$RUNNER_TEMP"/export/*.ipa -d "$RUNNER_TEMP/signature-check"
+          APP="$RUNNER_TEMP/signature-check/Payload/App.app"
+          /usr/bin/codesign --verify --deep --strict --verbose=2 "$APP"
+          for BUNDLE in "$APP" "$APP"/Frameworks/*.framework; do
+            [ -d "$BUNDLE" ] || continue
+            /usr/bin/codesign -dv --verbose=4 "$BUNDLE" 2>&1 | grep -E 'Identifier=|Authority=|TeamIdentifier='
+            /usr/bin/codesign -dv --verbose=4 "$BUNDLE" 2>&1 | grep -Fq 'TeamIdentifier=${{ secrets.IOS_TEAM_ID }}'
+          done
 
       - name: Upload to TestFlight
         if: ${{ steps.keys.outputs.have == 'true' }}

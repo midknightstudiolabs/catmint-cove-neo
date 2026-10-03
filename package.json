@@ -1,6 +1,6 @@
 {
   "name": "catmint-cove-neo",
-  "version": "3.4.6",
+  "version": "3.4.7",
   "private": true,
   "description": "Catmint Cove — a cozy-idle cat sanctuary. Web game + Capacitor wrapper for the app stores. This repo (Neo) is the current build source.",
   "type": "module",
