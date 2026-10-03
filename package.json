@@ -5,6 +5,7 @@
   "description": "Catmint Cove — a cozy-idle cat sanctuary. Web game + Capacitor wrapper for the app stores. This repo (Neo) is the current build source.",
   "type": "module",
   "scripts": {
+    "postinstall": "node scripts/patch-admob-consent.mjs",
     "build": "node scripts/build-www.mjs",
     "sync": "npm run build && cap sync",
     "sync:android": "npm run build && cap sync android",
@@ -16,6 +17,7 @@
     "serve": "node serve.mjs"
   },
   "dependencies": {
+    "@capacitor-community/admob": "8.1.0",
     "@capacitor-community/keep-awake": "^8.0.1",
     "@capacitor/android": "^8.5.1",
     "@capacitor/app": "^8.1.1",

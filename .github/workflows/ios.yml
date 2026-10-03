@@ -87,6 +87,7 @@ jobs:
           npx cap add ios
           npx @capacitor/assets generate --ios
           npx cap sync ios
+          node scripts/configure-ios-admob.mjs
 
       - name: No native splash overlay on iOS — go straight to the loading screen
         run: |

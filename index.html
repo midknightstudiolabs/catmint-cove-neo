@@ -2498,11 +2498,8 @@ const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ?
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
 // reset. The plain build (root URL) has none of that, safe to hand to testers.
 const DEV_BUILD = /(^|\/)dev\/?$/.test(location.pathname) || /(^|[?&])dev\b/.test(location.search);
-// Ads are OFF for the store launch. We ship ad-free + the Supporter Pack, get a
-// clean retention baseline, then turn ads on (this flag becomes a remote-config
-// flag in the native build — no re-submission). `?ads` forces them on for QA;
-// the dev "show ad" button flips it at runtime.
-let ADS_ENABLED = /(^|[?&])ads\b/.test(location.search);
+// iOS native bridge only; web and Android never request ads.
+let ADS_ENABLED = !!window.CoveNative?.ads?.enabled;
 const DAY_MS = 86400000;
 const today = () => Math.floor(Date.now() / DAY_MS);
 let DPR = Math.min(window.devicePixelRatio || 1, 2);   // re-read on every resize (iPad zoom / display change)
@@ -8409,8 +8406,10 @@ function openCredits() {
       <a href="https://www.catmintcove.com/#contact">Support</a>
     </p>
     <p class="cr-build" id="crBuild"></p>
+    ${window.CoveNative?.ads?.privacyRequired ? '<button class="btn" id="adPrivacy">Ad privacy choices</button>' : ''}
     <div class="row"><button class="btn primary" id="crClose">Back to Help</button></div>
   </div>`);
+  document.getElementById('adPrivacy')?.addEventListener('click',async()=>{try{await window.CoveNative.ads.privacyOptions();}catch(e){toast('Privacy choices could not open. Please try again.');}});
   { const u = [...new Set(Object.values(SFX_FILES).flat())];
     const src = (typeof SFX_DATA !== "undefined" && SFX_DATA[u[0]]) ? "embed" : "file";
     document.getElementById("crBuild").textContent =
@@ -8663,126 +8662,77 @@ function fireTip(key) {
   if (TIPS[key]) toast(TIPS[key], 4.2);
 }
 
-/* ================================ ads ================================ *
- * One interface the game calls. Backed by a *simulated* player here; in the
- * native build the two async methods become real Google AdMob calls
- * (RewardedAd / InterstitialAd) behind the exact same signatures — nothing
- * else in the game changes.
- *
- *   await Ads.rewarded(placement)   -> boolean   (true = watched → grant it)
- *   Ads.interstitial(trigger)       -> Promise   (self-throttling, safe anywhere)
- *   Ads.owned()                     -> boolean   (Supporter Pack purchased)
- *   Ads.rewardReady(placement)      -> boolean   (per-placement cooldown elapsed)
- *
- * Guardrails baked in: 48h new-player grace, ≤3 interstitials/day, ≥4min gap,
- * none for supporters, never in Rest mode, never over the tutorial or a modal.
- */
+/* Optional iOS rewarded bonuses. Normal rewards never depend on an ad. */
 const Ads = (() => {
-  const GRACE_MS  = 48 * 3600e3;
-  const MIN_GAP_MS = 4 * 60e3;
-  const DAY_CAP   = 3;
-  const SESSION_MIN_MS = 8 * 60e3;         // only queue a session-end ad after a real sit-down
-  const REWARD_CD = {                      // per-placement cooldowns for opt-in offers (ms)
-    offline2x: 0,
-    freeCoax: 90 * 60e3,
-  };
+  const native = window.CoveNative?.ads;
   const A = () => (G.ads || (G.ads = newAdsState()));
-  const dayKey = (d = new Date()) => d.getFullYear() + "-" + (d.getMonth() + 1) + "-" + d.getDate();
   const owned = () => !!A().supporter;
-  const inGrace = () => { const t = G.firstSeen || 0; return t > 0 && Date.now() - t < GRACE_MS; };
-  const busy = () => (scrim && scrim.classList.contains("on"))
-    || (tutEl && tutEl.classList.contains("on")) || !!_cold || !G.tutorialDone || restMode;
-
+  const day = () => new Date().toISOString().slice(0,10);
+  let active = false, offeredAt = 0;
+  const allowed = p => p === 'offline2x' || p === 'adventureBonus';
+  // Unknown ages and under-18 players keep the regular ad-free game for this first release.
+  const eligible = () => owned() || (A().asked && Number.isFinite(A().born) && A().born >= 1900 && new Date().getFullYear() - A().born >= 18);
+  const busy = () => active || restMode || festMode || !!_cold || !G.tutorialDone;
   function rewardReady(p) {
-    const cd = REWARD_CD[p] || 0;
-    return Date.now() - ((A().rewardAt && A().rewardAt[p]) || 0) >= cd;
+    const a=A(), n=a.bonusDay===day() ? (a.bonusCount||0) : 0;
+    return ADS_ENABLED && allowed(p) && eligible() && !busy() && n<3
+      && (!a.lastBonus || Date.now()-a.lastBonus>=15*60000)
+      && (!offeredAt || Date.now()-offeredAt>=15*60000)
+      && (owned() || !!native?.ready(p));
   }
-  function markReward(p) { (A().rewardAt = A().rewardAt || {})[p] = Date.now(); save(); }
-
-  // ---- the simulated player: a small overlay with a forced-view countdown ----
-  function playSim(rewarded) {
-    return new Promise(resolve => {
-      const host = document.getElementById("adv");
-      const secs = rewarded ? 5 : 4;
-      host.innerHTML = `
-        <div class="adbox">
-          <div class="adtag">ad · simulated</div>
-          <div class="adname">${rewarded ? "Rewarded video" : "Sponsored"}</div>
-          <div class="adfill"><i></i></div>
-          <div class="adnote">real build: Google AdMob ${rewarded ? "rewarded video" : "interstitial"}</div>
-          <button class="adx" disabled>${rewarded ? "Reward in " : "Skip in "}<b>${secs}</b></button>
-        </div>`;
-      host.classList.add("on");
-      const btn = host.querySelector(".adx"), num = btn.querySelector("b");
-      const fill = host.querySelector(".adfill i");
-      fill.style.transition = `width ${secs}s linear`;
-      requestAnimationFrame(() => { fill.style.width = "100%"; });
-      let left = secs;
-      const iv = setInterval(() => {
-        left--;
-        if (num && left > 0) num.textContent = left;
-        if (left <= 0) {
-          clearInterval(iv);
-          btn.disabled = false;
-          btn.textContent = rewarded ? "Claim reward" : "Continue";
-        }
-      }, 1000);
-      const done = () => { if (btn.disabled) return; clearInterval(iv); host.classList.remove("on"); resolve(true); };
-      btn.onclick = done;
-    });
+  function offer(p) { if(!rewardReady(p))return false; offeredAt=Date.now(); return true; }
+  async function warm(p='offline2x') {
+    if(!ADS_ENABLED || !eligible() || owned() || busy() || scrim.classList.contains('on'))return;
+    await native?.prepare(p);
+    await native?.prepare(p==='offline2x'?'adventureBonus':'offline2x');
   }
-
-  function offerPackOnce() {
-    if (A().prompted || owned()) return;
-    A().prompted = true; save();
-    setTimeout(() => { if (!busy()) showPackOffer(true); }, 900);
+  async function rewarded(p, key, grant) {
+    if(!ADS_ENABLED || !allowed(p) || !eligible() || busy() || typeof grant!=='function')return false;
+    const a=A();
+    if((a.bonusClaims||[]).includes(key))return false;
+    if(a.bonusDay===day() && (a.bonusCount||0)>=3)return false;
+    if(a.lastBonus && Date.now()-a.lastBonus<15*60000)return false;
+    active=true;
+    let awarded=false;
+    const earn=()=>{
+      if(awarded || (a.bonusClaims||[]).includes(key))return;
+      awarded=true;
+      a.bonusClaims=[...(a.bonusClaims||[]),key].slice(-100);
+      if(a.bonusDay!==day()){a.bonusDay=day();a.bonusCount=0;}
+      a.bonusCount=(a.bonusCount||0)+1;a.lastBonus=Date.now();
+      grant();save();syncHud();
+    };
+    const wasPaused=_paused;_paused=true;
+    const audioRunning=actx?.state==='running';
+    try {
+      if(owned())earn();
+      else { if(audioRunning)await actx.suspend(); await native.show(p,earn); }
+    } catch(e) { console.warn('Rewarded ad unavailable'); }
+    finally {active=false;_paused=wasPaused;if(audioRunning)resumeAudio(false);}
+    return awarded;
   }
-
-  return {
-    owned, rewardReady,
-
-    // opt-in — resolves true only if the player watched it through
-    async rewarded(placement) {
-      if (!ADS_ENABLED || busy()) return false;
-      const ok = await playSim(true);
-      if (ok) markReward(placement);
-      return ok;
-    },
-
-    // forced — self-throttling; a no-op whenever a guardrail says so
-    async interstitial(trigger) {
-      const a = A();
-      if (!ADS_ENABLED || owned() || inGrace() || busy()) return;
-      const now = Date.now();
-      if (now - (a.last || 0) < MIN_GAP_MS) return;
-      const k = dayKey();
-      if (a.day !== k) { a.day = k; a.dayCount = 0; }
-      if (a.dayCount >= DAY_CAP) return;
-      a.last = now; a.dayCount++; a.seen++; save();
-      await playSim(false);
-      if (a.seen >= 3) offerPackOnce();
-    },
-
-    // session boundary: leaving after a real session queues one ad for the return
-    onHide() {
-      const a = A();
-      if (!ADS_ENABLED || owned() || inGrace()) return;
-      if (performance.now() - sessionStart >= SESSION_MIN_MS) { a.pending = true; save(); }
-    },
-    onShow() {
-      const a = A();
-      if (a.pending) { a.pending = false; save(); setTimeout(() => Ads.interstitial("resume"), 400); }
-    },
+  async function start() {
+    if(ADS_ENABLED && eligible() && !owned()) {
+      await native?.initialize();
+      // Loading never blocks the normal return flow. Offers appear only when ready.
+      void native?.prepare('offline2x');
+    }
+  }
+  return { owned, rewardReady, offer, warm, rewarded, start,
+    // Automatic ads are intentionally disabled, including old queued resume ads.
+    interstitial:async()=>{}, onHide(){}, onShow(){A().pending=false;},
   };
 })();
 
-/* one-time neutral age gate — sets the ad treatment (personalized vs contextual) */
+setInterval(()=>{ if(!document.hidden)Ads.warm('adventureBonus'); },60000);
+
+/* One-time age gate: unknown ages and minors receive no ad requests. */
 function askAgeGate(then) {
   const yearNow = new Date().getFullYear();
   openModal(`<div class="reveal">
     <div class="kicker">One quick thing</div>
     <h2>What year were you born?</h2>
-    <p class="sub">This just sets what kind of ads the cove can show. We don't store your birthday.</p>
+    <p class="sub">Optional ad bonuses are available to adults. We save only your birth year on this device. Leave blank to keep playing without ads.</p>
     <input class="name-in" id="age-in" inputmode="numeric" maxlength="4" placeholder="${yearNow - 20}" autocomplete="off">
     <div class="row">
       <button class="btn primary" id="age-ok">Continue</button>
@@ -8793,8 +8743,8 @@ function askAgeGate(then) {
   const submit = () => {
     const y = parseInt(inp.value, 10);
     const age = (y >= 1900 && y <= yearNow) ? yearNow - y : null;
-    G.ads.born = Number.isFinite(y) ? y : null;
-    G.ads.npa = !(age !== null && age >= 18);   // personalized ads only for known adults
+    G.ads.born = age !== null ? y : null;
+    G.ads.npa = true; // Non-personalized requests only.
     G.ads.asked = true;
     save(); closeModal();
     if (then) then();
@@ -9209,21 +9159,23 @@ function offlineEarnings(elapsed, then) {
   const base = backgroundShells(Math.min(G.ratePerSec, aggregateRate()), elapsed);
   if (base <= 0) return done();
   const earned = base;                                // no paid multiplier — see MONETIZATION.md
-  const canWatch = ADS_ENABLED && Ads.rewardReady("offline2x");   // an OPTIONAL rewarded ad, only if ads are ever enabled
+  const canWatch = Ads.offer("offline2x");   // an OPTIONAL rewarded ad, only if ads are ever enabled
   openModal(`
     <div class="big">◈ ${earned}</div>
     <h2>Your cats were busy</h2>
     <p>${cats.length} cat${cats.length===1?"":"s"} kept ${coveName()} running while you were away${elapsed>3600?` (${fmtTime(elapsed)})`:""}.</p>
     <div class="row">
       <button class="btn primary" id="m-take">Collect</button>
-      ${canWatch ? `<button class="btn rewarded" id="m-2x"><span class="ico">▶</span> Double it &nbsp;<small style="opacity:.6">ad</small></button>` : ""}
+      ${canWatch ? `<button class="btn rewarded" id="m-2x"><span class="ico">▶</span> ${Ads.owned() ? "Claim bonus" : "Watch ad"} · +${earned} shells</button>` : ""}
     </div>`);
-  document.getElementById("m-take").onclick = () => { G.shells += earned; sfx("collect"); syncHud(); closeModal(); done(); };
+  let collected=false;
+  const collectBase=()=>{if(collected)return false;collected=true;G.shells+=earned;save();syncHud();return true;};
+  document.getElementById("m-take").onclick = () => { if(!collectBase())return;sfx("collect");closeModal();done(); };
   const dbl = document.getElementById("m-2x");
   if (dbl) dbl.onclick = async () => {
+    if(!collectBase())return;
     closeModal();
-    const watched = await Ads.rewarded("offline2x");
-    G.shells += watched ? earned * 2 : earned;
+    const watched = await Ads.rewarded("offline2x", "offline:"+Date.now(), () => {G.shells+=earned;});
     sfx(watched ? "buy" : "collect"); syncHud();
     if (watched) toast(`Doubled — ◈ ${earned * 2} banked.`);
     done();
@@ -9490,6 +9442,7 @@ function _resetAudioContext() {
 // them too — and the context can return to "running" on its own with dead beds,
 // so a stale flag (not just state) drives the rebuild.
 function resumeAudio(fromGesture) {
+  if(window.CoveNative?.ads?.showing)return;
   if (!actx) { if (fromGesture) ensureAudio(); return; }
   if (actx.state === "running") { if (_audioStale) _rebuildAudioBeds(); return; }
   actx.resume().then(() => {
@@ -20008,7 +19961,14 @@ function resolveAdventure(advId, onDone) {
   dedupeCats();
   save(); syncHud(); rebuildAttractors(); try { neoScheduleAdventureReminders(); } catch (e) {}
   renderAdventureCard();
-  runVignette(advVignette(a.dest, results), { cat: results[0].cat, onDone });
+  runVignette(advVignette(a.dest, results), { cat: results[0].cat, onDone: () => {
+    if(!Ads.offer('adventureBonus')){if(onDone)onDone();return;}
+    let used=false;
+    openModal('<h2>A little extra from the trip</h2><p>Your adventure rewards are already collected.</p><p>Optional bonus: <b>1 driftwood</b>.</p><div class="row"><button class="btn primary" id="adv-bonus-done">Continue</button><button class="btn rewarded" id="adv-bonus-watch">'+(Ads.owned()?'Claim bonus':'Watch ad')+' · +1 driftwood</button></div>');
+    const finish=()=>{closeModal();if(onDone)onDone();};
+    document.getElementById('adv-bonus-done').onclick=()=>{if(used)return;used=true;finish();};
+    document.getElementById('adv-bonus-watch').onclick=async()=>{if(used)return;used=true;closeModal();const ok=await Ads.rewarded('adventureBonus','adventure:'+a.id,()=>gainDriftwood(1));toast(ok?'An extra driftwood brought home.':'Your regular rewards are safe.');finish();};
+  } });
 }
 // call an in-progress party home early — they return with nothing from the trip
 function recallAdventure(advId) {
@@ -20440,6 +20400,7 @@ function pickAdventureCat(dest, tier) {
 /* ---- on every return: roll a While-You-Were-Away beat, flag a cat that's home ---- */
 // runs LAST, after checkOffline's narrative beat + the earnings summary have closed
 function afterReturn(awaySec) {
+  Ads.warm();
   syncHud();
 
   setTimeout(() => { try { maybeOfferWelcome(); } catch (e) {} }, 4200);
@@ -22214,7 +22175,11 @@ if (G.rest && G.rest.on && (!G.rest.endsAt || Date.now() < G.rest.endsAt)) {
 
 // first run: name the cove → age gate → cold open → then check offline earnings
 const needName = !G.owner && !G.ownerAsked;
-function maybeAgeGate(then) { if (!ADS_ENABLED || (G.ads && G.ads.asked)) return then && then(); askAgeGate(then); }
+function maybeAgeGate(then) {
+  const next=async()=>{await Ads.start();if(then)then();};
+  if (!ADS_ENABLED || (G.ads && G.ads.asked)) return next();
+  askAgeGate(next);
+}
 function runBootFlow() {
   if (needName) askOwnerName(true);              // chains → maybeAgeGate → startColdOpen (see askOwnerName)
   else if (!G.tutorialDone) maybeAgeGate(startColdOpen);

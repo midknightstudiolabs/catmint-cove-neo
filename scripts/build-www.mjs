@@ -33,7 +33,7 @@ const festAudioMarker = "const FEST_AUDIO_DATA = {};   /* @native-fest-audio */"
 if (!html.includes(festAudioMarker)) throw new Error("build-www: @native-fest-audio marker not found — index.html changed shape, update this script");
 html = html.replace(festAudioMarker, "const FEST_AUDIO_DATA = " + JSON.stringify(fa) + ";");
 
-html = html.replace(marker, '<script src="capacitor-bridge.js"></script>\n$&');
+html = html.replace(marker, '<script src="capacitor-bridge.js"></script>\n<script src="admob-config.js"></script>\n<script src="admob-bridge.js"></script>\n$&');
 await writeFile(join(www, "index.html"), html);
 
 // 2. runtime assets the game fetch()es by relative path
@@ -47,5 +47,6 @@ const nativeSocialPath = join(www, "ui", "social-config.js");
 const nativeSocial = await readFile(nativeSocialPath, "utf8");
 await writeFile(nativeSocialPath, nativeSocial.replace("enabled:false", "enabled:true"));
 await cp(join(root, "scripts", "capacitor-bridge.js"), join(www, "capacitor-bridge.js"));
+for (const f of ["admob-config.js", "admob-bridge.js"]) await cp(join(root, "scripts", f), join(www, f));
 
 console.log("built www/ from index.html + assets");

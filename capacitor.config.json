@@ -17,7 +17,18 @@
     }
   },
   "android": {
-    "allowMixedContent": false
+    "allowMixedContent": false,
+    "includePlugins": [
+      "@capacitor-community/keep-awake",
+      "@capacitor/app",
+      "@capacitor/filesystem",
+      "@capacitor/local-notifications",
+      "@capacitor/preferences",
+      "@capacitor/share",
+      "@capacitor/splash-screen",
+      "@capacitor/status-bar",
+      "@revenuecat/purchases-capacitor"
+    ]
   },
   "ios": {
     "contentInset": "never",
