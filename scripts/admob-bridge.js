@@ -8,11 +8,14 @@
   const sdk = cap.Plugins?.AdMob;
   if (!sdk) return;
   let init, consent, preparing, initialized = false, showing = false;
+  let lastError = null;
   const loaded = new Map();
   const id = p => config.testMode ? config.testRewardedId : config.units[p];
   const ready = p => !!config.units[p] && !showing && consent?.canRequestAds === true && loaded.has(id(p)) && Date.now() - loaded.get(id(p)) < 50 * 60000;
   async function initialize() {
+    if (initialized && consent?.canRequestAds) return true;
     if (!init) init = (async () => {
+      lastError = null;
       // This initial release does not request ATT or personalized ads.
       consent = await sdk.requestConsentInfo();
       if (consent.status === 'REQUIRED' && consent.isConsentFormAvailable) consent = await sdk.showConsentForm();
@@ -20,18 +23,20 @@
       await sdk.initialize({ initializeForTesting: config.testMode, maxAdContentRating: 'General' });
       initialized = true;
       return true;
-    })().catch(() => false);
-    return init;
+    })().catch(e => { lastError = String(e?.message || e); return false; });
+    const ok = await init;
+    if (!ok) init = null; // A transient network/consent failure must be retryable.
+    return ok;
   }
   async function prepare(p) {
     if (!initialized || !consent?.canRequestAds || !config.units[p] || showing) return false;
     if (ready(p)) return true;
-    if (preparing) return false;
+    if (preparing) { await preparing; if(ready(p))return true; }
     preparing = (async () => {
       loaded.delete(id(p));
       await sdk.prepareRewardVideoAd({ adId: id(p), isTesting: config.testMode, npa: true });
       loaded.set(id(p), Date.now()); return true;
-    })().catch(() => false);
+    })().catch(e => { lastError = String(e?.message || e); return false; });
     try { return await preparing; } finally { preparing = null; }
   }
   async function show(p, onEarned) {
@@ -61,6 +66,7 @@
   window.CoveNative.ads = {
     enabled: true, testMode: config.testMode, initialize, ready, prepare, show,
     get showing() { return showing; },
+    get lastError() { return lastError; },
     get privacyRequired() { return consent?.privacyOptionsRequirementStatus === 'REQUIRED'; },
     async privacyOptions() {
       if (showing || preparing) return;

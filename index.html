@@ -2492,7 +2492,7 @@ const SAVE_VERSIONS = [9];
 // a cache key that changes on every deploy (the file's Last-Modified moves) —
 // appended to the runtime asset fetches so audio never loads stale after an update
 const BUILD = String(Date.parse(document.lastModified) || 0) + ".v9";
-const APP_VERSION = "3.4.7";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
+const APP_VERSION = "3.4.8";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
 // only bust on the hosted web build — the native app bundles assets locally
 const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ? "&" : "?") + "v=" + BUILD : u;
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
@@ -6858,7 +6858,7 @@ function shopPackRow() {
          <div class="desc">Your plaque's by the sign${ADS_ENABLED ? " · ads off" : ""} · thank you </div></div>
        <button class="btn" data-founder-info>About your plaque</button>`
     : `<div class="txt"><div class="name">${neoUIIcon("paw")} Founding Covekeeper</div>
-         <div class="desc">For the hoomans helping our little Cove grow from the start · a limited 2026 founder's plaque, ribbon, halo &amp; hero mask · ad-free forever</div></div>
+         <div class="desc">For the hoomans helping our little Cove grow from the start · a limited 2026 founder's plaque, ribbon, halo &amp; hero mask · ad-free forever${ADS_ENABLED ? " · 2× offline and adventure resources" : ""}</div></div>
        <button class="btn primary">${IAP_PRODUCTS.founding_covekeeper.price}</button>`;
   const pb = pack.querySelector("button");
   if (pb) pb.addEventListener("click", () => pb.hasAttribute("data-founder-info") ? showFounderDescription() : showPackOffer(false));
@@ -8668,23 +8668,23 @@ const Ads = (() => {
   const A = () => (G.ads || (G.ads = newAdsState()));
   const owned = () => !!A().supporter;
   const day = () => new Date().toISOString().slice(0,10);
-  let active = false, offeredAt = 0;
+  let active = false;
   const allowed = p => p === 'offline2x' || p === 'adventureBonus';
   // Unknown ages and under-18 players keep the regular ad-free game for this first release.
   const eligible = () => owned() || (A().asked && Number.isFinite(A().born) && A().born >= 1900 && new Date().getFullYear() - A().born >= 18);
   const busy = () => active || restMode || festMode || !!_cold || !G.tutorialDone;
-  function rewardReady(p) {
+  function canOffer(p) {
     const a=A(), n=a.bonusDay===day() ? (a.bonusCount||0) : 0;
     return ADS_ENABLED && allowed(p) && eligible() && !busy() && n<3
       && (!a.lastBonus || Date.now()-a.lastBonus>=15*60000)
-      && (!offeredAt || Date.now()-offeredAt>=15*60000)
-      && (owned() || !!native?.ready(p));
+;
   }
-  function offer(p) { if(!rewardReady(p))return false; offeredAt=Date.now(); return true; }
+  function rewardReady(p) { return canOffer(p) && !!native?.ready(p); }
+  function offer(p) { return canOffer(p); }
+  async function load(p) { if(!canOffer(p) || owned())return false; if(!await native?.initialize())return false;return !!await native.prepare(p); }
   async function warm(p='offline2x') {
     if(!ADS_ENABLED || !eligible() || owned() || busy() || scrim.classList.contains('on'))return;
-    await native?.prepare(p);
-    await native?.prepare(p==='offline2x'?'adventureBonus':'offline2x');
+    await load(p);
   }
   async function rewarded(p, key, grant) {
     if(!ADS_ENABLED || !allowed(p) || !eligible() || busy() || typeof grant!=='function')return false;
@@ -8718,7 +8718,7 @@ const Ads = (() => {
       void native?.prepare('offline2x');
     }
   }
-  return { owned, rewardReady, offer, warm, rewarded, start,
+  return { owned, rewardReady, offer, load, warm, rewarded, start,
     // Automatic ads are intentionally disabled, including old queued resume ads.
     interstitial:async()=>{}, onHide(){}, onShow(){A().pending=false;},
   };
@@ -8919,7 +8919,7 @@ function showPackOffer(soft) {
   if (Ads.owned()) {
     openModal(`<div class="reveal"><div class="kicker">Founding Covekeeper</div>
       <h2>You were here first 🧡</h2>
-      <p class="sub">Your plaque stands by the cove sign, Midknight's wearing his founder's ribbon${ADS_ENABLED ? ", and the cove stays ad-free" : ""}.</p>
+      <p class="sub">Your plaque stands by the cove sign, Midknight's wearing his founder's ribbon${ADS_ENABLED ? ", and your offline earnings and adventure resources are doubled without ads" : ""}.</p>
       <p class="sub" style="margin-top:-.5rem">Thank you, hooman. It means more than you know. 🐾</p>
       <div class="row"><button class="btn primary" id="pk-close">Back to the cove</button></div></div>`);
     document.getElementById("pk-close").onclick = closeModal;
@@ -8934,6 +8934,7 @@ function showPackOffer(soft) {
       <li>A <b>founder's ribbon</b> for Midknight</li>
       <li>A glowing <b>halo</b> &amp; a <b>hero mask</b> for any cat — now and always</li>
       <li><b>Ad-free forever</b></li>
+      ${ADS_ENABLED ? "<li><b>Double offline earnings and adventure resources</b> — no ad to watch. Included for existing Founders too.</li>" : ""}
       <li>It goes straight to the developer — <b>no publisher, no investors</b></li>
     </ul>
     <div class="row">
@@ -8941,7 +8942,7 @@ function showPackOffer(soft) {
       <button class="btn" id="pk-no">Maybe later</button>
     </div>
     <button class="linkbtn" id="pk-restore" style="margin-top:.6rem">Already bought it? Restore purchase</button>
-    <p class="sub" style="margin:.5rem 0 0;font-size:.76rem;">${billingNote("Purely cosmetic — a way to support the developer")}</p>
+    <p class="sub" style="margin:.5rem 0 0;font-size:.76rem;">${billingNote(ADS_ENABLED ? "2× offline earnings and adventure shells, pearls and driftwood. Unique discoveries are not duplicated." : "Purely cosmetic — a way to support the developer")}</p>
   </div>`);
   document.getElementById("pk-buy").onclick = async () => {
     closeModal();
@@ -9153,33 +9154,33 @@ function offlineArrivals(elapsed) {
 }
 // the offline-earnings summary — a gentle trickle, softly capped, shown LAST
 // (after any homecoming / postcard / tale beat) so a return leads with a moment
+// Reward surfaces remain iOS-only through ADS_ENABLED (native bridge gate).
+function rewardReturnOffer({title,detail,placement,key,resources,collect,done,alreadyCollected=false}) {
+  let used=false;
+  const rows=Object.entries(resources).filter(([,n])=>n>0).map(([name,n])=>'<div style="display:flex;justify-content:space-between;gap:16px"><span>'+name+'</span><b>'+n+'</b></div>').join('');
+  const eligible=Ads.offer(placement);
+  openModal('<div class="reveal"><h2>'+title+'</h2><p>'+detail+'</p><div style="background:var(--panel);padding:16px;border-radius:12px;margin:18px 0">'+rows+'</div><div class="row"><button class="btn primary" id="return-collect">'+(alreadyCollected?'Continue':'Collect regular rewards')+'</button>'+(eligible?'<button class="btn rewarded" disabled id="return-double">Loading optional 2× ad…</button>':'')+'</div><p class="sub" id="return-note">'+(alreadyCollected?'Your regular rewards are already collected.':'Your regular rewards are ready. No need to wait for an ad.')+'</p></div>');
+  const normal=document.getElementById('return-collect'),bonus=document.getElementById('return-double');
+  const finish=()=>{closeModal();done?.();};
+  normal.onclick=()=>{if(used)return;used=true;collect();finish();};
+  if(!bonus)return;
+  const load=async()=>{bonus.disabled=true;bonus.textContent='Loading optional 2× ad…';const ready=await Promise.race([Ads.load(placement),new Promise(resolve=>setTimeout(()=>resolve(false),15000))]);if(used||!bonus.isConnected)return;bonus.disabled=false;bonus.textContent=ready?'Watch ad · Collect 2×':'Ad unavailable · Retry';};
+  bonus.onclick=async()=>{if(used)return;if(!Ads.rewardReady(placement)){void load();return;}used=true;collect();closeModal();const ok=await Ads.rewarded(placement,key,()=>{G.shells+=resources.shells||0;G.pearls=(G.pearls||0)+(resources.pearls||0);if(resources.driftwood)gainDriftwood(resources.driftwood);});toast(ok?'2× rewards collected.':'Your regular rewards are safe. The ad bonus was not completed.');done?.();};
+  void load();
+}
 function offlineEarnings(elapsed, then) {
-  const done = () => { try { then && then(); } catch (e) {} };
-  if (elapsed < 45 || !(G.ratePerSec > 0)) return done();
-  const base = backgroundShells(Math.min(G.ratePerSec, aggregateRate()), elapsed);
-  if (base <= 0) return done();
-  const earned = base;                                // no paid multiplier — see MONETIZATION.md
-  const canWatch = Ads.offer("offline2x");   // an OPTIONAL rewarded ad, only if ads are ever enabled
-  openModal(`
-    <div class="big">◈ ${earned}</div>
-    <h2>Your cats were busy</h2>
-    <p>${cats.length} cat${cats.length===1?"":"s"} kept ${coveName()} running while you were away${elapsed>3600?` (${fmtTime(elapsed)})`:""}.</p>
-    <div class="row">
-      <button class="btn primary" id="m-take">Collect</button>
-      ${canWatch ? `<button class="btn rewarded" id="m-2x"><span class="ico">▶</span> ${Ads.owned() ? "Claim bonus" : "Watch ad"} · +${earned} shells</button>` : ""}
-    </div>`);
+  const done=()=>{try{then?.();}catch(e){}};
+  if(elapsed<45 || !(G.ratePerSec>0))return done();
+  const base=backgroundShells(Math.min(G.ratePerSec,aggregateRate()),elapsed);
+  if(base<=0)return done();
+  const founder=ADS_ENABLED && Ads.owned();
   let collected=false;
-  const collectBase=()=>{if(collected)return false;collected=true;G.shells+=earned;save();syncHud();return true;};
-  document.getElementById("m-take").onclick = () => { if(!collectBase())return;sfx("collect");closeModal();done(); };
-  const dbl = document.getElementById("m-2x");
-  if (dbl) dbl.onclick = async () => {
-    if(!collectBase())return;
-    closeModal();
-    const watched = await Ads.rewarded("offline2x", "offline:"+Date.now(), () => {G.shells+=earned;});
-    sfx(watched ? "buy" : "collect"); syncHud();
-    if (watched) toast(`Doubled — ◈ ${earned * 2} banked.`);
-    done();
-  };
+  const collect=()=>{if(collected)return;collected=true;G.shells+=base*(founder?2:1);save();syncHud();};
+  if(founder){
+    openModal('<div class="reveal"><div class="kicker">Founder benefit · 2× rewards included</div><h2>Your cats kept busy</h2><div class="big">◈ '+(base*2)+'</div><p>'+base+' shells + '+base+' Founder bonus</p><p class="sub">Your bonus is included. No ads, no extra steps.</p><button class="btn primary" id="m-take">Collect 2× rewards</button></div>');
+    document.getElementById('m-take').onclick=()=>{if(collected)return;collect();closeModal();done();};return;
+  }
+  rewardReturnOffer({title:'Your cats kept busy',detail:'While you were away, life carried on in the Cove.',placement:'offline2x',key:'offline:'+Date.now(),resources:{shells:base},collect,done});
 }
 // v3: while you were away — food ran down, needs crept up, health slipped, and a
 // cove left far too long can lose a cat. Writes _wywaReport for the return roster.
@@ -19961,14 +19962,19 @@ function resolveAdventure(advId, onDone) {
   dedupeCats();
   save(); syncHud(); rebuildAttractors(); try { neoScheduleAdventureReminders(); } catch (e) {}
   renderAdventureCard();
-  runVignette(advVignette(a.dest, results), { cat: results[0].cat, onDone: () => {
-    if(!Ads.offer('adventureBonus')){if(onDone)onDone();return;}
-    let used=false;
-    openModal('<h2>A little extra from the trip</h2><p>Your adventure rewards are already collected.</p><p>Optional bonus: <b>1 driftwood</b>.</p><div class="row"><button class="btn primary" id="adv-bonus-done">Continue</button><button class="btn rewarded" id="adv-bonus-watch">'+(Ads.owned()?'Claim bonus':'Watch ad')+' · +1 driftwood</button></div>');
-    const finish=()=>{closeModal();if(onDone)onDone();};
-    document.getElementById('adv-bonus-done').onclick=()=>{if(used)return;used=true;finish();};
-    document.getElementById('adv-bonus-watch').onclick=async()=>{if(used)return;used=true;closeModal();const ok=await Ads.rewarded('adventureBonus','adventure:'+a.id,()=>gainDriftwood(1));toast(ok?'An extra driftwood brought home.':'Your regular rewards are safe.');finish();};
-  } });
+  const vignette=advVignette(a.dest,results);
+  const rewards=vignette.outcome.reward;
+  const resources={shells:rewards.shells||0,pearls:rewards.pearls||0,driftwood:rewards.driftwood||0};
+  const founder=ADS_ENABLED && Ads.owned();
+  if(founder){
+    for(const k of Object.keys(resources))if(resources[k])rewards[k]=resources[k]*2;
+    vignette.outcome.text+=' Founder benefit: 2× shells, pearls and driftwood included. No ad needed.';
+    vignette.outcome.close='Collect 2× rewards';
+  }
+  runVignette(vignette,{cat:results[0].cat,onDone:()=>{
+    if(!ADS_ENABLED || founder){onDone?.();return;}
+    rewardReturnOffer({title:'Your explorers are home',detail:'Double the shells and resources from this trip with an optional ad.',placement:'adventureBonus',key:'adventure:'+a.id,resources,collect:()=>{},done:onDone,alreadyCollected:true});
+  }});
 }
 // call an in-progress party home early — they return with nothing from the trip
 function recallAdventure(advId) {
@@ -20165,7 +20171,7 @@ function showPostcard(text, cat, dest, onDone, card, back) {
   document.getElementById("pc-send").onclick = () => neoSendPostcard(card || { text, cat, dest }, m => { const e = document.getElementById("pc-say"); if (e) e.textContent = m; });
 }
 function showFounderDescription(){
-  openModal(`<div class="reveal"><div class="kicker">A LITTLE THANK-YOU · 2026</div><h2>Founding Covekeeper</h2><p>This plaque marks your support for Catmint Cove during its founding days. You helped give this little home a beginning.</p><p>Your keepsakes include the dated plaque and founder accessories: a ribbon, halo, and hero mask. They celebrate your support and give no gameplay advantage.</p><p class="muted">Thank you for helping the Cove grow.</p><div class="cove-action-pair"><button class="btn" id="founder-close">Keep here</button><button class="btn primary" id="founder-store">Store item</button></div></div>`);
+  openModal(`<div class="reveal"><div class="kicker">A LITTLE THANK-YOU · 2026</div><h2>Founding Covekeeper</h2><p>This plaque marks your support for Catmint Cove during its founding days. You helped give this little home a beginning.</p><p>Your keepsakes include the dated plaque and founder accessories: a ribbon, halo, and hero mask. They celebrate your support.${ADS_ENABLED ? " Your Founder benefits also include double offline earnings and adventure shells, pearls and driftwood, with no ads to watch." : ""}</p><p class="muted">Thank you for helping the Cove grow.</p><div class="cove-action-pair"><button class="btn" id="founder-close">Keep here</button><button class="btn primary" id="founder-store">Store item</button></div></div>`);
   document.getElementById('founder-store').onclick=()=>{G.cosmetics.founderStored=true;save();closeModal();toast('Plaque stored in My inventory.');};
   document.getElementById('founder-close').onclick=closeModal;
 }

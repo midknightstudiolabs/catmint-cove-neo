@@ -47,7 +47,7 @@ function game(supporter=false){
  vm.createContext(c);vm.runInContext(policy+'\nthis.ads=Ads;',c);return c;
 }
 for(const supporter of [true,false]){
- const g=game(supporter);let coins=0;assert.ok(g.ads.offer('offline2x'));assert.equal(g.ads.offer('adventureBonus'),false);
+ const g=game(supporter);let coins=0;assert.ok(g.ads.offer('offline2x'));assert.equal(g.ads.offer('adventureBonus'),true);
  assert.equal(await g.ads.rewarded('offline2x','claim1',()=>coins+=10),true);assert.equal(coins,10);
  assert.equal(await g.ads.rewarded('offline2x','claim1',()=>coins+=10),false);
  g.G.ads.lastBonus=0;g.G.ads.bonusCount=3;assert.equal(await g.ads.rewarded('adventureBonus','claim2',()=>coins++),false);
@@ -55,15 +55,28 @@ for(const supporter of [true,false]){
 const minor=game();minor.G.ads.born=new Date().getFullYear()-10;assert.equal(minor.ads.rewardReady('offline2x'),false);
 const unknown=game();unknown.G.ads.born=null;assert.equal(unknown.ads.rewardReady('offline2x'),false);
 assert.equal(game().ads.rewardReady('freeCoax'),false);
-const offline=html.slice(html.indexOf('function offlineEarnings(elapsed, then) {'),html.indexOf('// v3: while you were away'));
-for(const outcome of ['earned','skipped','failed']){
- const g=game(), elements={};let saved=0,done=0;
- Object.assign(g,{document:{getElementById:id=>elements[id]||(elements[id]={})},backgroundShells:()=>100,aggregateRate:()=>1,cats:[],coveName:()=> 'Cove',openModal(){},closeModal(){},sfx(){},toast(){},save(){saved=g.G.shells;}});
- g.G.shells=10;g.G.ratePerSec=1;
- g.window.CoveNative.ads.show=async(p,earn)=>{assert.equal(saved,110,'base is saved before presenting');if(outcome==='failed')throw Error('unavailable');if(outcome==='earned'){earn();earn();}};
- vm.runInContext(offline+'\nthis.offline=offlineEarnings;',g);
- g.offline(100,()=>done++);
- const first=elements['m-2x'].onclick();await elements['m-2x'].onclick();await first;
- assert.equal(g.G.shells,outcome==='earned'?210:110);assert.equal(saved,g.G.shells);assert.equal(done,1);
+
+// Real offline reward UI and claim handlers, with a delayed-ad DOM stand-in.
+const offline=html.slice(html.indexOf('function rewardReturnOffer('),html.indexOf('// v3: while you were away'));
+for(const supporter of [false,true])for(const outcome of ['earned','skipped','failed']){
+ const g=game(supporter),elements={};let saved=0,done=0;
+ Object.assign(g,{setTimeout,document:{getElementById:id=>elements[id]||(elements[id]={isConnected:true})},backgroundShells:()=>100,aggregateRate:()=>1,openModal(){},closeModal(){},toast(){},save(){saved=g.G.shells;}});
+ g.G.shells=10;g.G.ratePerSec=1;g.window.CoveNative.ads.initialize=async()=>true;g.window.CoveNative.ads.prepare=async()=>true;
+ g.window.CoveNative.ads.show=async(p,earn)=>{assert.equal(saved,110);if(outcome==='failed')throw Error('unavailable');if(outcome==='earned'){earn();earn();}};
+ vm.runInContext(offline+'\nthis.offline=offlineEarnings;',g);g.offline(100,()=>done++);
+ const button=elements[supporter?'m-take':'return-double'];const first=button.onclick();await button.onclick();await first;
+ assert.equal(g.G.shells,supporter||outcome==='earned'?210:110);assert.equal(done,1);
 }
-console.log('PASS: platform isolation, single initialization, test IDs, consent gating, earned-only/once rewards, cancellation/failure, privacy cache invalidation, supporter parity, age gating, cooldown/cap, game script syntax.');
+const retry=harness();let attempts=0;retry.sdk.requestConsentInfo=async()=>{if(++attempts===1)throw Error('offline');return {canRequestAds:true};};assert.equal(await retry.ads.initialize(),false);assert.equal(await retry.ads.initialize(),true);assert.equal(attempts,2);
+console.log('PASS: iOS-only bridge, consent, retry after failure, single initialization, test IDs, earned-once rewards, failed/cancelled ads preserve base, Founder double without ads, game syntax.');
+
+// Exercise the real adventure return function: multiplier never duplicates discoveries.
+const adventure=html.slice(html.indexOf('function resolveAdventure(advId, onDone) {'),html.indexOf('// call an in-progress party home early'));
+for(const enabled of [false,true])for(const founder of [false,true]){
+ const cat={name:'Midknight',mascot:true,x:0,y:0,mood:50};const trip={id:'trip-1',endsAt:0,party:[{name:'Midknight'}]};let outcome,offer,finished=0;
+ const c={ADS_ENABLED:enabled,Ads:{owned:()=>founder},G:{},cats:[cat],activeAdvs:()=>[trip],_departures:[],advLoot:()=>({reward:{shells:10}}),gainBond(){},spawnParticles(){},dedupeCats(){},save(){},syncHud(){},rebuildAttractors(){},neoScheduleAdventureReminders(){},renderAdventureCard(){},advVignette:()=>({outcome:{text:'Home',reward:{shells:100,pearls:1,driftwood:2,mapPiece:true,keepsakes:['shell']}}}),runVignette:(v,o)=>{outcome=v.outcome;o.onDone();},rewardReturnOffer:o=>{offer=o;}};
+ vm.createContext(c);vm.runInContext(adventure+'\nthis.resolve=resolveAdventure;',c);c.resolve('trip-1',()=>finished++);
+ const doubled=enabled&&founder;assert.equal(outcome.reward.shells,doubled?200:100);assert.equal(outcome.reward.pearls,doubled?2:1);assert.equal(outcome.reward.driftwood,doubled?4:2);assert.equal(outcome.reward.mapPiece,true);assert.equal(outcome.reward.keepsakes.length,1);
+ if(enabled&&!founder){assert.equal(offer.resources.shells,100);assert.equal(offer.alreadyCollected,true);}else assert.equal(finished,1);
+}
+console.log('PASS: adventure totals, iOS Founder doubling, regular optional bonus, unique discoveries unchanged.');
