@@ -8776,7 +8776,7 @@ function grantOnce(key, fn) {
 // re-derive every purchased perk from what's owned. idempotent — safe on every launch.
 function applyEntitlements() {
   if (!G.iap) G.iap = newIapState();
-  // Founding Covekeeper — cosmetic + support ONLY (no 2× offline, no pearls):
+  // Founding Covekeeper — iOS return bonuses are derived from this entitlement.
   // the ad-free flag, a founder's ribbon for Midknight, and the plaque by the
   // sign (drawn in drawCoveSign, gated on iapOwns).
   const sup = iapOwns("founding_covekeeper");
@@ -8902,8 +8902,8 @@ async function runPurchase(productId, label, priceStr) {
   return false;
 }
 // footer line for the offer modals — honest in both the app and the web build
-function billingNote(lead) {
-  return `${lead || "Purely cosmetic"} — no effect on your cove, your cats or your progress. `
+function billingNote(lead, rewardBenefit=false) {
+  return `${lead || "Purely cosmetic"}${rewardBenefit ? " " : " — no effect on your cove, your cats or your progress. "}`
     + (nativeIap() ? "Tied to your store account. Restore purchases on supported devices."
                    : "Preview only on the web; no payment is taken.");
 }
@@ -8942,7 +8942,7 @@ function showPackOffer(soft) {
       <button class="btn" id="pk-no">Maybe later</button>
     </div>
     <button class="linkbtn" id="pk-restore" style="margin-top:.6rem">Already bought it? Restore purchase</button>
-    <p class="sub" style="margin:.5rem 0 0;font-size:.76rem;">${billingNote(ADS_ENABLED ? "2× offline earnings and adventure shells, pearls and driftwood. Unique discoveries are not duplicated." : "Purely cosmetic — a way to support the developer")}</p>
+    <p class="sub" style="margin:.5rem 0 0;font-size:.76rem;">${billingNote(ADS_ENABLED ? "2× offline earnings and adventure shells, pearls and driftwood. Unique discoveries are not duplicated." : "Purely cosmetic — a way to support the developer", ADS_ENABLED)}</p>
   </div>`);
   document.getElementById("pk-buy").onclick = async () => {
     closeModal();
