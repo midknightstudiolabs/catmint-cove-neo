@@ -8,20 +8,21 @@
   const sdk = cap.Plugins?.AdMob;
   if (!sdk) return;
   let init, consent, preparing, initialized = false, showing = false;
-  let lastError = null;
+  let lastError = null, stage = "idle";
   const loaded = new Map();
   const id = p => config.testMode ? config.testRewardedId : config.units[p];
   const ready = p => !!config.units[p] && !showing && consent?.canRequestAds === true && loaded.has(id(p)) && Date.now() - loaded.get(id(p)) < 50 * 60000;
   async function initialize() {
     if (initialized && consent?.canRequestAds) return true;
     if (!init) init = (async () => {
-      lastError = null;
+      lastError = null; stage = "consent";
       // This initial release does not request ATT or personalized ads.
       consent = await sdk.requestConsentInfo();
       if (consent.status === 'REQUIRED' && consent.isConsentFormAvailable) consent = await sdk.showConsentForm();
-      if (!consent.canRequestAds) return false;
+      if (!consent.canRequestAds) { lastError = 'Consent is not ready (' + (consent.status || 'unknown') + '). Check the published AdMob privacy message.'; return false; }
+      stage = 'initializing';
       await sdk.initialize({ initializeForTesting: config.testMode, maxAdContentRating: 'General' });
-      initialized = true;
+      initialized = true; stage = "initialized";
       return true;
     })().catch(e => { lastError = String(e?.message || e); return false; });
     const ok = await init;
@@ -33,9 +34,10 @@
     if (ready(p)) return true;
     if (preparing) { await preparing; if(ready(p))return true; }
     preparing = (async () => {
+      lastError = null; stage = "loading";
       loaded.delete(id(p));
       await sdk.prepareRewardVideoAd({ adId: id(p), isTesting: config.testMode, npa: true });
-      loaded.set(id(p), Date.now()); return true;
+      loaded.set(id(p), Date.now()); stage = "ready"; return true;
     })().catch(e => { lastError = String(e?.message || e); return false; });
     try { return await preparing; } finally { preparing = null; }
   }
@@ -67,6 +69,7 @@
     enabled: true, testMode: config.testMode, initialize, ready, prepare, show,
     get showing() { return showing; },
     get lastError() { return lastError; },
+    get diagnostic() { return {stage, error:lastError, testMode:config.testMode, initialized, consentStatus:consent?.status || "unknown", canRequestAds:consent?.canRequestAds === true}; },
     get privacyRequired() { return consent?.privacyOptionsRequirementStatus === 'REQUIRED'; },
     async privacyOptions() {
       if (showing || preparing) return;

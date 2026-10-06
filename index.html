@@ -2492,7 +2492,7 @@ const SAVE_VERSIONS = [9];
 // a cache key that changes on every deploy (the file's Last-Modified moves) —
 // appended to the runtime asset fetches so audio never loads stale after an update
 const BUILD = String(Date.parse(document.lastModified) || 0) + ".v9";
-const APP_VERSION = "3.4.8";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
+const APP_VERSION = "3.4.9";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
 // only bust on the hosted web build — the native app bundles assets locally
 const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ? "&" : "?") + "v=" + BUILD : u;
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
@@ -9164,7 +9164,17 @@ function rewardReturnOffer({title,detail,placement,key,resources,collect,done,al
   const finish=()=>{closeModal();done?.();};
   normal.onclick=()=>{if(used)return;used=true;collect();finish();};
   if(!bonus)return;
-  const load=async()=>{bonus.disabled=true;bonus.textContent='Loading optional 2× ad…';const ready=await Promise.race([Ads.load(placement),new Promise(resolve=>setTimeout(()=>resolve(false),15000))]);if(used||!bonus.isConnected)return;bonus.disabled=false;bonus.textContent=ready?'Watch ad · Collect 2×':'Ad unavailable · Retry';};
+  let attempt=0;
+  const load=async()=>{
+    const token=++attempt;bonus.disabled=true;bonus.textContent='Loading optional 2× ad…';
+    const note=document.getElementById('return-note');
+    const explain=()=>{const d=window.CoveNative?.ads?.diagnostic;if(d?.testMode && note?.isConnected)note.textContent='Test ad · '+d.stage+': '+(d.error || 'Still waiting for Google. You can collect your regular rewards.');};
+    let settled=false;
+    const slow=setTimeout(()=>{if(!used && token===attempt && bonus.isConnected){bonus.textContent='Still loading optional ad…';explain();}},15000);
+    const timeout=setTimeout(()=>{if(!settled && !used && token===attempt && bonus.isConnected){bonus.disabled=false;bonus.textContent='Ad taking too long · Retry';explain();}},60000);
+    try { const ready=await Ads.load(placement);if(used || token!==attempt || !bonus.isConnected)return;bonus.disabled=false;bonus.textContent=ready?'Watch ad · Collect 2×':'Ad unavailable · Retry';if(ready && note?.isConnected)note.textContent='Optional: finish the test ad to double these resources.';else explain(); }
+    finally{settled=true;clearTimeout(slow);clearTimeout(timeout);}
+  };
   bonus.onclick=async()=>{if(used)return;if(!Ads.rewardReady(placement)){void load();return;}used=true;collect();closeModal();const ok=await Ads.rewarded(placement,key,()=>{G.shells+=resources.shells||0;G.pearls=(G.pearls||0)+(resources.pearls||0);if(resources.driftwood)gainDriftwood(resources.driftwood);});toast(ok?'2× rewards collected.':'Your regular rewards are safe. The ad bonus was not completed.');done?.();};
   void load();
 }

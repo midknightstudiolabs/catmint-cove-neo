@@ -60,7 +60,7 @@ assert.equal(game().ads.rewardReady('freeCoax'),false);
 const offline=html.slice(html.indexOf('function rewardReturnOffer('),html.indexOf('// v3: while you were away'));
 for(const supporter of [false,true])for(const outcome of ['earned','skipped','failed']){
  const g=game(supporter),elements={};let saved=0,done=0;
- Object.assign(g,{setTimeout,document:{getElementById:id=>elements[id]||(elements[id]={isConnected:true})},backgroundShells:()=>100,aggregateRate:()=>1,openModal(){},closeModal(){},toast(){},save(){saved=g.G.shells;}});
+ Object.assign(g,{setTimeout,clearTimeout,document:{getElementById:id=>elements[id]||(elements[id]={isConnected:true})},backgroundShells:()=>100,aggregateRate:()=>1,openModal(){},closeModal(){},toast(){},save(){saved=g.G.shells;}});
  g.G.shells=10;g.G.ratePerSec=1;g.window.CoveNative.ads.initialize=async()=>true;g.window.CoveNative.ads.prepare=async()=>true;
  g.window.CoveNative.ads.show=async(p,earn)=>{assert.equal(saved,110);if(outcome==='failed')throw Error('unavailable');if(outcome==='earned'){earn();earn();}};
  vm.runInContext(offline+'\nthis.offline=offlineEarnings;',g);g.offline(100,()=>done++);
@@ -80,3 +80,6 @@ for(const enabled of [false,true])for(const founder of [false,true]){
  if(enabled&&!founder){assert.equal(offer.resources.shells,100);assert.equal(offer.alreadyCollected,true);}else assert.equal(finished,1);
 }
 console.log('PASS: adventure totals, iOS Founder doubling, regular optional bonus, unique discoveries unchanged.');
+
+const failure=harness();failure.sdk.requestConsentInfo=async()=>{throw Error('Consent request: Publisher misconfiguration');};assert.equal(await failure.ads.initialize(),false);assert.equal(failure.ads.diagnostic.stage,'consent');assert.match(failure.ads.diagnostic.error,/Publisher misconfiguration/);
+const loadFailure=harness();await loadFailure.ads.initialize();loadFailure.sdk.prepareRewardVideoAd=async()=>{throw Error('Rewarded load: Network unavailable');};assert.equal(await loadFailure.ads.prepare('offline2x'),false);assert.equal(loadFailure.ads.diagnostic.stage,'loading');assert.match(loadFailure.ads.diagnostic.error,/Network unavailable/);console.log('PASS: consent and ad-load failure details remain distinguishable.');
