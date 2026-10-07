@@ -22,7 +22,7 @@ function init(g,now=Date.now()){
 
  if(!g.resort||!Array.isArray(g.resort.cottages))g.resort={version:3,cottages:Array.from({length:MAX_COTTAGES},()=>({built:false,stage:0,bed:0,guest:null})),completedStays:0,revenue:0,lastTick:now,selected:0,view:'outside'};
 
- const s=g.resort;s.amenities=s.amenities||{};while(s.cottages.length<MAX_COTTAGES)s.cottages.push({built:false,stage:0,guest:null,bed:0});
+ const s=g.resort;s.amenities=s.amenities||{};if(g.cafe?.unlocked)s.amenities.cafe=true;while(s.cottages.length<MAX_COTTAGES)s.cottages.push({built:false,stage:0,guest:null,bed:0});
 
  for(const c of s.cottages){if(!BUILDINGS[c.kind])c.kind="cottage";c.stage=Math.max(0,Math.min(2,Number(c.stage)||0));c.bed=Math.max(0,Math.min(2,Number(c.bed)||0));}
 

@@ -50,7 +50,8 @@ const box=(x,y,w,h,col)=>{c.fillStyle=col;c.fillRect(x,y,w,h);};
 if(id==='pool'||id==='kayak'){box(20,76,280,106,'#68b6c6');c.strokeStyle='#def3df';for(let i=0;i<7;i++){c.beginPath();c.ellipse(150+Math.sin(t/1400+i)*12,85+i*14,100,3,0,0,Math.PI);c.stroke();}}
 else if(id==='garden'){for(let i=0;i<6;i++){const x=32+i%3*95,y=83+Math.floor(i/3)*60;box(x,y,68,40,'#8b704f');for(let k=0;k<4;k++){c.fillStyle='#678753';c.beginPath();c.ellipse(x+10+k*15,y+17,7,11,0,0,7);c.fill();}}}
 else{box(25,82,270,37,'#927653');box(22,77,276,8,'#f7e5ba');if(id==='reception'){for(let k=0;k<8;k++){box(220+k%4*15,60+Math.floor(k/4)*7,8,4,'#a78956');}box(43,64,32,13,'#f7edd5');c.fillStyle='#385949';c.font='7px Georgia';c.fillText('WELCOME',45,73);}else{box(235,52,38,25,'#638574');box(240,58,28,12,'#304d41');for(let i=0;i<6;i++){box(48+i*23,70,12,6,'#f0d29c');}}}
-if(isOpen&&members.length){if(id==='reception'){api.cat?.(c,{...members[0],pose:'loafing'},160,75,.65,t);for(let i=0;i<Math.min(4,members.length-1);i++){const phase=(t/9000)%1;api.cat?.(c,{...members[i+1],pose:'exploring'},102+i*42-phase*10,157+i%2*12,.65,t);}}else for(let i=0;i<Math.min(4,members.length);i++)api.cat?.(c,{...members[i],pose:id==='pool'?'loafing':'exploring'},48+i*72,148+Math.sin(t/1600+i)*5,.6,t);}
+if(id==='reception')api.cat?.(c,{coatKey:'midknight',mascot:true,markSeed:777,age:'adult',pose:'loafing'},160,75,.65,t);
+if(isOpen&&members.length){if(id==='reception'){for(let i=0;i<Math.min(4,members.length-1);i++){const phase=(t/9000)%1;api.cat?.(c,{...members[i+1],pose:'exploring'},102+i*42-phase*10,157+i%2*12,.65,t);}}else for(let i=0;i<Math.min(4,members.length);i++)api.cat?.(c,{...members[i],pose:id==='pool'?'loafing':'exploring'},48+i*72,148+Math.sin(t/1600+i)*5,.6,t);}
 if(!isOpen){box(65,130,190,34,'#f5ebd4');c.fillStyle='#456351';c.textAlign='center';c.font='12px Georgia';c.fillText('Planned · not open yet',160,152);}
 }
 
