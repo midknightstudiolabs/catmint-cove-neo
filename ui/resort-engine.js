@@ -12,7 +12,7 @@ const AMENITIES=[{id:'garden',name:'Botanical garden',cost:1800,bonus:.05},{id:'
 
 function bonus(g){return AMENITIES.reduce((n,a)=>n+(g.resort?.amenities?.[a.id]?a.bonus:0),0);}
 
-function buyAmenity(g,id,now=Date.now()){const s=init(g,now),a=AMENITIES.find(a=>a.id===id);if(!a||s.amenities[id]||!s.cottages[0].built||g.shells<a.cost)return false;settle(g,now);g.shells-=a.cost;s.amenities[id]=true;return true;}
+function buyAmenity(g,id,now=Date.now()){const s=init(g,now),a=AMENITIES.find(a=>a.id===id);if(!a||s.amenities[id]||!s.cottages.some(c=>c.built)||g.shells<a.cost)return false;settle(g,now);g.shells-=a.cost;s.amenities[id]=true;return true;}
 
 const COATS=['ginger','greytab','calico','greywhite','cream','siamese'],NAMES=['Clover','Poppy','Otis','Sailor','Juniper','Finch'];
 
@@ -52,7 +52,8 @@ function settle(g,now=Date.now()){
 
 }
 
-function buildCottage(g,i,now=Date.now(),kind="cottage"){if(!BUILDINGS[kind])return false;const s=init(g,now),c=s.cottages[i],cost=BUILD_COST[i]===undefined?undefined:BUILD_COST[i]+BUILDINGS[kind].extra;if(!c||c.built||cost===undefined||(i>0&&!s.cottages[0].built)||g.shells<cost)return false;settle(g,now);g.shells-=cost;c.kind=kind;c.built=true;checkIn(c,now,g);return true;}
+function buildCost(g,i,kind='cottage'){const s=init(g);if(!Number.isInteger(i)||i<0||i>=MAX_COTTAGES||!BUILDINGS[kind])return Infinity;return (s.cottages.some(c=>c.built||c.job)?Math.max(500,BUILD_COST[i]):0)+BUILDINGS[kind].extra;}
+function buildCottage(g,i,now=Date.now(),kind="cottage"){if(!BUILDINGS[kind])return false;const s=init(g,now),c=s.cottages[i],cost=buildCost(g,i,kind);if(!c||c.built||cost===undefined||g.shells<cost)return false;settle(g,now);g.shells-=cost;c.kind=kind;c.built=true;checkIn(c,now,g);return true;}
 
 function upgradeCottage(g,i,now=Date.now()){const s=init(g,now),c=s.cottages[i],next=c&&STAGES[c.stage+1];if(!c?.built||!next||g.shells<next.cost)return false;settle(g,now);g.shells-=next.cost;c.stage++;return true;}
 
@@ -102,13 +103,13 @@ upgradeCottage=function(g,i,now=Date.now()){const c=init(g,now).cottages[i],next
 
 upgradeBed=function(g,i,now=Date.now()){const c=init(g,now).cottages[i];return !!c&&c.bed<2&&renovate(g,i,'bed',120*(c.bed+1),c.bed+1,5*(c.bed+1),now);};
 
-buildCottage=function(g,i,now=Date.now(),kind='cottage'){const c=init(g,now).cottages[i];if(!c||c.job)return false;if(!oldBuild(g,i,now,kind))return false;if(i){c.built=false;c.guest=null;c.job={type:'build',start:now,end:now+(kind==='villa'?60:kind==='lodge'?30:10)*60000};}return true;};
+buildCottage=function(g,i,now=Date.now(),kind='cottage'){const s=init(g,now),first=!s.cottages.some(c=>c.built||c.job),c=s.cottages[i];if(!c||c.job)return false;if(!oldBuild(g,i,now,kind))return false;if(!first){c.built=false;c.guest=null;c.job={type:'build',start:now,end:now+(kind==='villa'?60:kind==='lodge'?30:10)*60000};}return true;};
 
 function buyBusiness(g,id,now=Date.now()){settle(g,now);const s=init(g,now),b=BUSINESSES.find(b=>b.id===id),v=s.businesses[id]||{level:0};if(!b||v.job||v.level>=3||s.cottages.filter(c=>c.built).length<b.need)return false;const cost=b.cost*(v.level+1);if(g.shells<cost)return false;g.shells-=cost;v.job={start:now,end:now+b.minutes*(v.level+1)*60000,target:v.level+1};s.businesses[id]=v;return true;}
 
 function specialize(g,i,service,now=Date.now()){if(!['family','retreat','standard'].includes(service)||init(g,now).cottages[i]?.service===service)return false;return renovate(g,i,'service',600,service,15,now);}
 function customize(g,i,style){const c=init(g).cottages[i];if(!c?.built||c.job||!['sage','terracotta','ocean'].includes(style))return false;c.style=style;return true;}
 
-root.CoveResortEngine={BUILDINGS,AMENITIES,BUSINESSES,businessRate,buyBusiness,specialize,customize,bonus,buyAmenity,MAX_COTTAGES,BUILD_COST,STAGES,OFFLINE_CAP,init,stats,settle,buildCottage,upgradeCottage,upgradeBed};
+root.CoveResortEngine={buildCost,BUILDINGS,AMENITIES,BUSINESSES,businessRate,buyBusiness,specialize,customize,bonus,buyAmenity,MAX_COTTAGES,BUILD_COST,STAGES,OFFLINE_CAP,init,stats,settle,buildCottage,upgradeCottage,upgradeBed};
 
 })(globalThis);
