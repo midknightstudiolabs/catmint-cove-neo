@@ -125,6 +125,7 @@
    lamps.forEach(x=>lamp(x,178));
    if(night){glow(360,wy+63,115,.12);oval(360,316,ww*.46,14,'#eed09118');}
    if(tier===2){for(const x of [248,360,472]){rect(x-1,111,2,10,'#756344');oval(x,124,4,5,night?'#ffe5a4':'#dbc791');glow(x,128,25,.12);}}
+   if(s.guestFlowerBox){round(146,305,45,14,3,'#aa805a');for(let k=0;k<5;k++){rect(151+k*8,295,2,12,'#688957');oval(152+k*8,293,5,4,k%2?'#e9c990':'#cfa4af');}}
    // ---- outdoor décor (bought in Upgrades) ----
    if(has('lights')){const y0=roof+18;c.strokeStyle='rgba(60,46,32,.55)';c.lineWidth=1.4;c.beginPath();c.moveTo(left-6,y0);c.quadraticCurveTo(360,y0+34,right+6,y0);c.stroke();
     for(let i=0;i<=10;i++){const u=i/10,bx=left-6+(right-left+12)*u,by=y0+2*(1-u)*u*34;const twinkle=.75+.25*Math.sin(t/500+i);

@@ -2469,8 +2469,8 @@ details.garden-list{margin:12px 0}details.garden-list>summary{cursor:pointer;fon
 
 <script src="ui/product-analytics.js?v=1"></script>
 <script src="ui/memory-rewards.js?v=1"></script><script src="ui/endless-rewards.js?v=1"></script><link rel="stylesheet" href="ui/little-matches.css?v=14"><script src="ui/little-matches.js?v=18"></script>
-<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=13"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><script src="ui/cafe-engine.js?v=28"></script><script src="ui/cafe-scene.js?v=36"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=13"></script><script src="ui/resort-landscape.js?v=17"></script><script src="ui/resort-scene.js?v=7"></script><script src="ui/resort-view.js?v=13"></script>
-<link rel="stylesheet" href="ui/cove-stories.css?v=6"><script src="ui/cove-stories.js?v=6"></script><script src="ui/wishing-well.js?v=1"></script>
+<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=13"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><link rel="stylesheet" href="ui/guest-stories.css?v=1"><script src="ui/guest-stories.js?v=1"></script><script src="ui/guest-stories-view.js?v=1"></script><script src="ui/cafe-engine.js?v=29"></script><script src="ui/cafe-scene.js?v=37"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=14"></script><script src="ui/resort-landscape.js?v=18"></script><script src="ui/resort-scene.js?v=7"></script><script src="ui/resort-view.js?v=14"></script>
+<link rel="stylesheet" href="ui/cove-stories.css?v=6"><script src="ui/cove-stories.js?v=7"></script><script src="ui/wishing-well.js?v=1"></script>
 <script>
 (() => {
 "use strict";
@@ -2985,6 +2985,7 @@ function load() {
       G.econReset1 = true;
       if (G.shells > 80) { _econJustReset = Math.floor(G.shells); G.shells = 25; G.allTimeSec = 0; }
     }
+    window.CoveGuestStories?.sync(G);
     advanceCoveDay();
   } catch (e) { G = newGame(); }
 }
@@ -9254,6 +9255,13 @@ function offlineCare(elapsed) {
 // coming back: arrivals, then a NARRATIVE beat, then the earnings summary, then `then`
 function checkOffline(then) {
   const elapsed = (Date.now() - (G.lastSeen || Date.now())) / 1000;
+  const previousReturn=_guestReturnBaseline;_guestReturnBaseline=null;
+  if((previousReturn?.away||elapsed)>=45){
+    const now=Date.now(),baseline=previousReturn||guestReturnBaseline(now);
+    if(G.cafe?.unlocked)CoveCafeEngine.settle(G,now);
+    if(G.resort)CoveResortEngine.settle(G,now);
+    G.coveReturnSummary={at:now,cafe:Math.max(0,(G.cafe?.revenue||0)-baseline.cafe),resort:Math.max(0,(G.resort?.revenue||0)-baseline.resort),jobs:baseline.jobs,patches:(G.homestead?.plots||[]).filter(p=>p&&p.ready<=now).length};
+  }
   checkVetReturns();          // anyone whose vet stay ended while away is home first
   offlineCare(elapsed);
   offlineArrivals(elapsed);
@@ -21200,6 +21208,7 @@ function neoRenderJournal(){
   }
   document.getElementById('neo-journal-photo').onclick=()=>{closeAllPanels();document.getElementById('photoBtn').click();};
   document.getElementById('neo-journal-cats').onclick=()=>togglePanel('dex');
+  const guests=document.createElement('section');guests.className='gs-journal';const gh=document.createElement('h3');gh.textContent='Guest memories';guests.append(gh);const gp=document.createElement('p');gp.textContent=CoveGuestStories.summary(G).text;guests.append(gp);const gb=document.createElement('button');gb.className='btn';gb.textContent='Open guest stories';gb.onclick=neoOpenGuestStories;guests.append(gb);if(G.coveReturnSummary){const report=document.createElement('button');report.className='btn';report.textContent='While you were away';report.onclick=neoGuestReturnSummary;guests.append(report);}root.append(guests);
   CoveStories.journal(root,neoStoryAdapter());
 }
 function neoOpenExplore(){
@@ -22089,10 +22098,12 @@ function neoDrawStoryGuest(ctx,m,x,y,scale,t){
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);drawCat(ctx,guest,true);ctx.restore();
 }
 function neoStoryAdapter(){return {game:()=>G,save,cat:neoDrawStoryGuest};}
+function neoOpenGuestStories(){CoveGuestStoriesView.open({game:()=>G,save,cat:neoDrawStoryGuest,cafe:()=>neoOpenHomestead('cafe'),garden:()=>neoOpenHomestead('garden'),resort:()=>neoOpenResort(),story:()=>CoveStories.open('guest-001',neoStoryAdapter(),null,true)});}
+function neoGuestReturnSummary(){const r=G.coveReturnSummary;if(!r)return;openModal('<div><h2>The Cove kept growing</h2><p class="sub">Recorded '+new Date(r.at).toLocaleString()+'. These earnings have already been counted.</p><p>Resort stays & shops: '+r.resort.toLocaleString()+' Shells</p><p>Café sales: '+r.cafe.toLocaleString()+' Shells</p><p>Garden patches ready: '+r.patches+'</p><p>Renovations finished: '+r.jobs+'</p><p class="sub">Resort earnings cover up to 8 hours; café service up to 12 hours with ingredients. Cove offline rewards and eligible ad bonuses are handled separately.</p><div class="row"><button class="btn" id="gs-return-close">Back to my Cove</button></div></div>');document.getElementById('gs-return-close').onclick=closeModal;}
 function neoOpenResort(){
  closeAllPanels();CoveStories.open('resort-001',neoStoryAdapter(),()=>{
  CoveResortEngine.init(G,Date.now());save();
- CoveResortView.open({cafe:()=>neoOpenHomestead('cafe'),garden:()=>neoOpenHomestead('garden'),game:()=>G,close:()=>{closeAllPanels();save();},save,register:p=>panels.resort=p,cat:neoDrawStoryGuest});});
+ CoveResortView.open({stories:neoOpenGuestStories,cafe:()=>neoOpenHomestead('cafe'),garden:()=>neoOpenHomestead('garden'),game:()=>G,close:()=>{closeAllPanels();save();},save,register:p=>panels.resort=p,cat:neoDrawStoryGuest});});
 }
 
 syncNavH();
@@ -22170,7 +22181,10 @@ setInterval(() => {
 window.__cove.backupNudge = { due: () => neoBackupNudgeDue(), show: () => neoShowBackupNudge(), state: () => G.backupNudge || null, share: () => neoShareBackup() };
 resize();
 _lastViewBottom = _viewBottomY;
+function guestReturnBaseline(now=Date.now()){return {away:(now-(G.lastSeen||now))/1000,cafe:G.cafe?.revenue||0,resort:G.resort?.revenue||0,jobs:[...(G.resort?.cottages||[]).map(c=>c.job),...Object.values(G.resort?.businesses||{}).map(b=>b.job)].filter(j=>j&&j.end<=now).length};}
+let _guestReturnBaseline=null;
 load();
+_guestReturnBaseline=guestReturnBaseline();
 restoreCats();
 neoRestoreHome();
 loadEntitlements();                    // pull purchases from the dedicated iapStore — runs whatever load() did

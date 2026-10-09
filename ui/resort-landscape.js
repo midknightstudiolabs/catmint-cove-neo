@@ -82,7 +82,7 @@ const q=wander(m,t);a.cat?.(c,{...m,pose:q.moving?'exploring':'loafing',trotting
 
 drawRoomCues(c,cottages,a,t);
 }
-function paint(c,cottages,A,B){
+function paint(c,cottages,A,B,hideLabels=false){
 const rand=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
 const path=(d,col,stroke,width=1)=>{const p=new Path2D(d);if(col){c.fillStyle=col;c.fill(p);}if(stroke){c.strokeStyle=stroke;c.lineWidth=width;c.stroke(p);}return p;};
 const oval=(x,y,rx,ry,col)=>{c.fillStyle=col;c.beginPath();c.ellipse(x,y,rx,ry,0,0,Math.PI*2);c.fill();};
@@ -167,7 +167,7 @@ for(let i=0;i<25;i++){const x=130+i*28,y=560+Math.sin(i*.7)*12;if(x>411&&x<526)c
 deck(444,542,68,81);for(const x of [444,511])for(let y=546;y<622;y+=18){line(x,y,x,y-8,'#8e7958',2);oval(x,y-8,2,1,'#e6d2a8');}house(472,516,1,0,.9);label('RECEPTION',474,554);path('M 523 581 Q 548 594 548 613 Q 532 623 519 611 Z','#f3ead2','#aa9674',1);path('M 523 587 L 537 595 L 539 613 L 524 608 Z','#6d9697');
 for(let k=0;k<4;k++){let x=279+k*91;if(x>420&&x<529)continue;lounger(x,542);lounger(x+15,545);umbrella(x+10,535);}
 label('PALM GROVE',226,76);label('LAGOON WALK',693,119);label('CORAL BEACH',666,550);
-function label(s,x,y,quiet=false){c.font='600 '+(s.length<3?8:8.5)+'px sans-serif';c.textAlign='center';const w=c.measureText(s).width+13;box(x-w/2,y-10,w,15,quiet?'#e9e4c78a':'#fcf4dace',5);c.fillStyle=quiet?'#76866b':'#4b6557';c.fillText(s,x,y);}
+function label(s,x,y,quiet=false){if(hideLabels)return;c.font='600 '+(s.length<3?8:8.5)+'px sans-serif';c.textAlign='center';const w=c.measureText(s).width+13;box(x-w/2,y-10,w,15,quiet?'#e9e4c78a':'#fcf4dace',5);c.fillStyle=quiet?'#76866b':'#4b6557';c.fillText(s,x,y);}
 }
-landscape.slots=slots;root.CoveResortLandscape=landscape;
+landscape.paintSnapshot=paint;landscape.slots=slots;root.CoveResortLandscape=landscape;
 })(globalThis);
