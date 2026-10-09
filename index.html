@@ -2470,7 +2470,7 @@ details.garden-list{margin:12px 0}details.garden-list>summary{cursor:pointer;fon
 <script src="ui/product-analytics.js?v=1"></script>
 <script src="ui/memory-rewards.js?v=1"></script><script src="ui/endless-rewards.js?v=1"></script><link rel="stylesheet" href="ui/little-matches.css?v=14"><script src="ui/little-matches.js?v=18"></script>
 <link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=13"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><link rel="stylesheet" href="ui/guest-stories.css?v=1"><script src="ui/guest-stories.js?v=1"></script><script src="ui/guest-stories-view.js?v=1"></script><script src="ui/cafe-engine.js?v=29"></script><script src="ui/cafe-scene.js?v=37"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=14"></script><script src="ui/resort-landscape.js?v=18"></script><script src="ui/resort-scene.js?v=7"></script><script src="ui/resort-view.js?v=14"></script>
-<link rel="stylesheet" href="ui/cove-stories.css?v=6"><script src="ui/cove-stories.js?v=7"></script><script src="ui/wishing-well.js?v=1"></script>
+<link rel="stylesheet" href="ui/cove-stories.css?v=6"><script src="ui/cove-stories.js?v=7"></script><script src="ui/halloween.js?v=2"></script><script src="ui/wishing-well.js?v=1"></script>
 <script>
 (() => {
 "use strict";
@@ -6266,6 +6266,8 @@ function renderCatCareCore(c) {
 //      (neck / ear / face / head), layered — a cat can wear a collar + glasses
 //      + a hat at once, but not two neck items or two hats.
 const ACCESSORIES = [
+  {key:'pumpkinhat',label:'Pumpkin hat',price:0,slot:'head',group:'Halloween',blurb:'A soft pumpkin cap, finished with a little leaf.'},
+  {key:'witchhat',label:'Witch hat',price:0,slot:'head',group:'Halloween',blurb:'A crooked plum hat. For very small spells.'},
   { key:"collar",      label:"Collar",       price:15,  slot:"neck", group:"Collars",  blurb:"A simple buckle collar." },
   { key:"bell",        label:"Bell collar",  price:20,  slot:"neck", group:"Collars",  blurb:"A collar with a little brass bell." },
   { key:"studcollar",  label:"Studded collar",price:30, slot:"neck", group:"Collars",  blurb:"A leather band with a row of little brass studs." },
@@ -6787,8 +6789,6 @@ const SHOP = [
     need:()=> charterEarned() ? null : `Meet ${CHARTER_DEX} coats first — ${dexCount()} so far`,
     buy:()=>{ G.coveCharter = true; } },
   // seasonal decor — a sneak-peek. shows locked until the season lands.
-  { key:"pumpkins", cat:"comforts", soon:true, name:"🎃 Pumpkin patch", desc:"Carved pumpkins, a few cobwebs, a very unbothered black cat.",
-    base:55, mul:1, get:()=>0, max:1, need:()=>"Coming this autumn" },
   { key:"wintertree", cat:"comforts", soon:true, name:"🎄 Winter tree", desc:"A little spruce with lights and a star — cats bat the low baubles.",
     base:70, mul:1, get:()=>0, max:1, need:()=>"Coming this winter" },
 ];
@@ -7088,7 +7088,7 @@ function renderShopDecor(list) {
     row.className = "shop-item";
     const action = active ? `<span class="owned">Active</span>`
       : owned ? `<button class="btn primary" data-set="${key}">Set</button>`
-      : `<button class="btn primary" data-buy-theme="${key}" ${afford ? "" : "disabled"}>◈ ${th.price.toLocaleString()}</button>`;
+      : `<button class="btn primary" data-buy-theme="${key}" ${afford ? "" : "disabled"}>${th.price===0?'Free':'◈ '+th.price.toLocaleString()}</button>`;
     row.innerHTML = `<div class="txt"><div class="name">${th.name}</div><div class="desc">${th.blurb}</div></div><div class="shop-actions"><button class="btn" data-preview-theme="${key}">Preview</button>${action}</div>`;
     row.querySelector("[data-preview-theme]").onclick=()=>previewAtmosphere(key);
     list.appendChild(row);
@@ -7103,7 +7103,7 @@ function renderShopDecor(list) {
     row.className = "shop-item";
     let action;
     if (!owned && p.earn) { const pe = propEarn(p); action = `<span class="owned earn">${esc(pe.short)}</span>`; }
-    else if (!owned) action = `<button class="btn primary" data-buy-prop="${p.id}" ${afford ? "" : "disabled"}>◈ ${p.price.toLocaleString()}</button>`;
+    else if (!owned) action = `<button class="btn primary" data-buy-prop="${p.id}" ${afford ? "" : "disabled"}>${p.price===0?'Free':'◈ '+p.price.toLocaleString()}</button>`;
     else if (!p.movable) action = `<span class="owned">In the cove</span>`;
     else if (boxed) action = `<button class="btn primary" data-place-prop="${p.id}">Place it</button>`;
     else action = `<button class="btn tiny" data-box-prop="${p.id}" title="Keep in inventory">Store item</button><button class="btn tiny" data-move-prop="${p.id}">Move</button>`;
@@ -7183,7 +7183,7 @@ function renderShopDress(list) {
     return head + `<div class="dp-grid">` + items.map(a => {
       const owned = accOwned(c, a.key), on = _dressWorn.includes(a.key);
       const locked = !!(a.iap || a.blessing || a.memoryLevel || a.endlessRound) && !owned;
-      const cost = a.memoryLevel ? `Level ${a.memoryLevel}` : a.endlessRound ? `Round ${a.endlessRound}` : locked ? "Locked" : a.pearls ? `✦ ${a.pearls}` : `◈ ${a.price}`;
+      const cost = a.memoryLevel ? `Level ${a.memoryLevel}` : a.endlessRound ? `Round ${a.endlessRound}` : locked ? "Locked" : a.pearls ? `✦ ${a.pearls}` : a.price===0 ? 'Free' : `◈ ${a.price}`;
       return `<button class="dp-acc${on ? " on" : ""}${a.premium ? " premium" : ""}${owned ? " owned" : ""}${locked ? " locked" : ""}" data-acc="${a.key}" title="${esc(a.blurb)}">
         <span class="dp-nm">${a.label}</span>
         <span class="dp-cost">${owned ? "yours" : cost}</span>
@@ -7223,7 +7223,7 @@ function renderShopDress(list) {
     else if (!news.length) { saveBtn.textContent = "Save the look"; saveBtn.disabled = false; }
     else {
       const bits = [cS ? `◈ ${cS}` : "", cP ? `✦ ${cP}` : ""].filter(Boolean).join("  ");
-      saveBtn.textContent = `Save · ${bits}`;
+      saveBtn.textContent = bits ? `Save · ${bits}` : 'Save · Free';
       saveBtn.disabled = (cS > Math.floor(G.shells)) || (cP > (G.pearls || 0));
     }
   }
@@ -15308,6 +15308,7 @@ function initClouds() {
 // sink). `sky` = [top, mid, bot] daytime bias; `ground` tints the earth; `grass`
 // recolours the meadow; `weather` drops ambient particles by day.
 const DECOR_THEMES = {
+  halloween:{name:'Pumpkin evening',price:0,sky:['#514963','#9a7c8c','#d2ac8b'],ground:'#aa8b64',grass:'#756945',grassAlt:'#bd9250',weather:'leaves',blurb:'A soft October sky, golden grass and a little everyday magic.'},
   default:  { name:"Cove default", price: 0, blurb:"The cove as it always was." },
   meadow:   { name:"Wildflower meadow", price: 22000, sky:["#9ec9d6","#dcead9","#eff4e6"], ground:"#c6ce9c", grass:"#7ba64c", grassAlt:"#8fbf5c", weather:"seeds",
              blurb:"The grass comes up thick and the whole cove goes to flower." },
@@ -15325,6 +15326,9 @@ const DECOR_THEMES = {
 // `render(g,t,x,y,s)` draws at a given anchor. The two "span" props (bunting,
 // lantern string) hang between the fixed sign posts and stay put.
 const DECOR_PROPS = [
+  {id:'halloweentree',name:'Lantern tree',price:0,blurb:'Twisting bare branches and one warm light to guide you home.',movable:true,place:{x:W*.13,y:H*.72,s:1},render(g,t,x,y,s){window.coveSpookyTree(g,x,y,s);}},
+  {id:'halloweenbats',name:'Bat bunting',price:0,blurb:'Little paper bats in the sea breeze. More craft night than fright night.',movable:true,place:{x:W*.5,y:H*.54,s:1},render(g,t,x,y,s){window.coveBatBunting(g,t,x,y,s);}},
+  {id:'halloweenpumpkins',name:'Pumpkin lanterns',price:0,blurb:'Three warm little faces. No scares required.',movable:true,place:{x:W*.8,y:H*.76,s:1.2},render(g,t,x,y,s){window.covePumpkin(g,x-27*s,y,s*.7);window.covePumpkin(g,x+24*s,y+5*s,s*.8);window.covePumpkin(g,x,y+11*s,s);}},
   { id:"stones",   name:"Stepping stones", price: 350, blurb:"Flat stones in a lazy curve. Purely for the look.",
     movable:true, place:{ x:W*0.50, y:H*0.94, s:1.2 }, render(g,t,x,y,s){ propStones(g, x, y, s); } },
   { id:"bunting",  name:"Bunting",         price: 1800, blurb:"Festival flags on two tall poles. Move them anywhere on clear grass.",
@@ -17217,6 +17221,7 @@ function drawEar(g, side, P, coat, back, flop = 0, kit = false) {
   g.restore();
 }
 function drawAccessory(g, kind, P, coat, kit) {
+  if(window.drawHalloweenAccessory?.(g,kind,P))return;
   if(window.drawMemoryAccessory(g,kind,P,coat,kit,coatLum(coat.base)))return;
   if(window.drawEndlessAccessory?.(g,kind,P,coat,kit,coatLum(coat.base)))return;
   const hr = P.hr, hx = P.hx, hy = P.hy;
