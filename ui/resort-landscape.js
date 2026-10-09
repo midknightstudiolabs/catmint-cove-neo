@@ -64,7 +64,7 @@ if(i<16&&i%4===1&&amenities.pool){const x=523+(Math.floor(i/4)%2)*25,y=302+u*45;
 c.save();c.beginPath();c.roundRect(506,286,64,80,16);c.clip();
 c.strokeStyle='#e1f8e9aa';c.lineWidth=.9;for(let k=0;k<3;k++){c.beginPath();c.ellipse(x,y+3+k*3,6+k*3+Math.sin(t/450+i)*.8,1.8+k*.5,0,0,Math.PI*2);c.stroke();}
 c.save();c.beginPath();c.rect(506,286,64,Math.max(0,y+1-286));c.clip();a.cat?.(c,{...m,pose:'loafing',face:forward?1:-1},x,y+11+Math.sin(t/550+i)*.6,.36,t);c.restore();c.fillStyle='#bde8da66';c.fillRect(x-5,y,10,1);c.restore();continue;}
-if(i<16&&i%4===2&&amenities.garden){a.cat?.(c,{...m,pose:'sleeping'},380+(Math.floor(i/4)%2)*18,378+Math.floor(i/8)*31,.32,t);continue;}
+if(i<16&&i%4===2&&amenities.garden){a.cat?.(c,{...m,pose:'sleeping'},389,379+Math.floor(i/4)*10,.32,t);continue;}
 if(i<16&&i%4===3&&amenities.cafe){a.cat?.(c,{...m,pose:'loafing'},502+(Math.floor(i/4)%4)*23,213,.32,t);continue;}
 const q=wander(m,t);a.cat?.(c,{...m,pose:q.moving?'exploring':'loafing',trotting:false,face:q.face},q.x,q.y+2,.34,t);
 }
@@ -116,7 +116,11 @@ positions.forEach(([x,y],i)=>{if(!cottages[i]?.built)return;oval(x+3,y+15,49,27,
 for(const [x,y]of [[451,225],[426,315],[441,425],[410,487],[612,220],[767,345],[761,446]]){oval(x+3,y+3,7,2,'#304f3825');line(x,y,x,y-14,'#756449',1.7);box(x-3,y-18,6,6,'#e5c585',1);box(x-2,y-17,4,4,'#fff0b9',1);path('M '+(x-4)+' '+(y-18)+' l 4 -3 l 4 3 Z','#526c53');}
 // Pools and public gardens form the centre, rather than occupying leftover margins.
 if(A.pool){deck(490,272,96,116);box(500,280,76,92,'#eee5cc',20);box(506,286,64,80,grad(506,286,570,366,[[0,'#3d9dba'],[1,'#86d1ca']]),16);for(let k=0;k<16;k++){let yy=291+k*4;line(514,yy,560,yy+2,k%2?'#d6f3dd55':'#399cab22',.7);}line(507,306,515,306,'#f0e9d4',2);line(507,315,515,315,'#f0e9d4',2);for(let k=0;k<3;k++){lounger(581,286+k*30);umbrella(600,284+k*30);}bush(503,382,.7);bush(567,382,.8);}else{oval(540,329,49,56,'#a1b97b');bush(524,309);bush(564,347);label('POOL GARDEN',540,330,true);}
-if(A.garden){oval(390,393,39,48,'#7f9e6b');oval(390,393,31,39,'#d9c79e');oval(390,393,24,31,'#9eb77d');for(let k=0;k<12;k++){let ang=k*.53;oval(390+Math.cos(ang)*28,393+Math.sin(ang)*35,4,3,k%2?'#dcb3a1':'#f0d899');}box(379,389,23,7,'#9b7f59',2);line(381,396,381,402,'#715e45',2);line(399,396,399,402,'#715e45',2);}else bush(390,393,1.8);
+// Cove Garden is a working kitchen garden, matching its raised crop patches.
+box(354,357,73,75,'#c4d2a0',4);box(385,360,7,71,'#e0d2ae');box(356,388,69,6,'#e0d2ae');
+for(let row=0;row<2;row++)for(let col=0;col<2;col++){const gx=357+col*36,gy=362+row*35;box(gx,gy,26,25,'#ac8a60',2);box(gx+2,gy+2,22,21,'#72543d',1);for(let k=0;k<6;k++){const cx=gx+6+k%3*7,cy=gy+7+Math.floor(k/3)*10;line(cx,cy+3,cx,cy-3,'#63854a',1);oval(cx-2,cy,3,1.7,'#80a65b');oval(cx+2,cy-2,3,1.7,'#628b50');if(row===1)oval(cx,cy+2,1.7,2,col?'#df9e56':'#c29caa');}}
+for(const xx of [355,367,379,400,412,424]){box(xx,354,2,8,'#bfa57a');}line(355,357,426,357,'#a78c63',1.5);label('COVE GARDEN',390,437);
+
 if(A.cafe){
 // Catmint Café: an open-front coffee shop, with the café game's sage machine and warm timber counter.
 deck(486,145,101,77);
@@ -150,7 +154,7 @@ for(let i=0;i<25;i++){const x=130+i*28,y=560+Math.sin(i*.7)*12;if(x>411&&x<526)c
 // Arrival deck, shaded reception and moored boat.
 deck(444,542,68,81);for(const x of [444,511])for(let y=546;y<622;y+=18){line(x,y,x,y-8,'#8e7958',2);oval(x,y-8,2,1,'#e6d2a8');}house(472,516,1,0,.9);label('RECEPTION',474,554);path('M 523 581 Q 548 594 548 613 Q 532 623 519 611 Z','#f3ead2','#aa9674',1);path('M 523 587 L 537 595 L 539 613 L 524 608 Z','#6d9697');
 for(let k=0;k<4;k++){let x=279+k*91;if(x>420&&x<529)continue;lounger(x,542);lounger(x+15,545);umbrella(x+10,535);}
-label('PALM GROVE',226,76);label('LAGOON WALK',693,119);label('SUNSET GARDENS',355,440);label('CORAL BEACH',666,550);
+label('PALM GROVE',226,76);label('LAGOON WALK',693,119);label('CORAL BEACH',666,550);
 function label(s,x,y,quiet=false){c.font='600 '+(s.length<3?8:8.5)+'px sans-serif';c.textAlign='center';const w=c.measureText(s).width+13;box(x-w/2,y-10,w,15,quiet?'#e9e4c78a':'#fcf4dace',5);c.fillStyle=quiet?'#76866b':'#4b6557';c.fillText(s,x,y);}
 }
 landscape.slots=slots;root.CoveResortLandscape=landscape;

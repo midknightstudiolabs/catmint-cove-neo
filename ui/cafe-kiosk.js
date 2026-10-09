@@ -186,6 +186,7 @@ let stripOpen=(()=>{try{return localStorage.getItem('neo.cafe.strip')==='1';}cat
    // Keep the painted room across control updates; a new empty canvas flashes cream.
    if(sceneCanvas){const placeholder=panel.querySelector('canvas');sceneCanvas.setAttribute('aria-label',placeholder.getAttribute('aria-label'));placeholder.replaceWith(sceneCanvas);}
    panel.querySelector('[data-close]').onclick=()=>{a.close();cancelAnimationFrame(frame);clearInterval(timer);};
+   if(a.resort){const back=document.createElement('button');back.type='button';back.className='btn';back.textContent='‹ Resort';back.setAttribute('aria-label','Back to Catmint Resort');back.onclick=()=>{stopActive();a.resort();};panel.querySelector('[data-close]').after(back);}
    panel.querySelector('.cc-title').textContent=E.cafeName(s);
    if(s.unlocked){const pen=document.createElement('button');pen.type='button';pen.className='cc-pen';pen.setAttribute('aria-label','Rename your café');pen.title='Rename your café';pen.innerHTML='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20l1-4L16.5 4.5a2.1 2.1 0 013 3L8 19l-4 1z"/></svg>';pen.onclick=openRename;panel.querySelector('.cc-title').after(pen);
     {const live=panel.querySelector('.cc-live'),h2=panel.querySelector('.cc-title');if(live&&h2){const row=document.createElement('div');row.className='cc-name';row.append(h2,pen);live.prepend(row);}}}
