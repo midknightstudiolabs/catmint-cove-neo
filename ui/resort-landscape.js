@@ -7,15 +7,15 @@ let cache,key='';
 const walks=new WeakMap(),nodes=[],links=[];
 function node(x,y){let i=nodes.findIndex(p=>Math.hypot(p.x-x,p.y-y)<3);if(i<0){i=nodes.length;nodes.push({x,y});links.push([]);}return i;}
 function road(points){let previous=null;for(const [x,y]of points){const n=node(x,y);if(previous!==null){links[n].push(previous);links[previous].push(n);}previous=n;}}
-road([[471,117],[467,160],[469,209],[462,250],[448,278],[440,299],[445,314],[444,344],[453,375],[459,400],[459,425],[459,455],[460,481],[464,508],[475,540],[475,575]]);
+road([[471,117],[467,160],[469,209],[462,250],[448,278],[440,299],[445,314],[444,344],[453,375],[459,400],[459,425],[459,455],[460,481],[430,490],[426,535],[445,564],[475,575]]);
 road([[160,194],[210,194],[260,204],[324,210],[370,208],[420,209],[469,209]]);
 road([[126,297],[191,300],[230,307],[273,317],[330,324],[390,318],[445,314]]);
 road([[151,399],[206,400],[241,415],[280,420],[350,425],[405,425],[459,425]]);
-road([[200,490],[255,502],[315,513],[355,515],[394,508],[430,508],[464,508]]);
-road([[469,209],[525,203],[575,199],[620,194],[670,198],[720,213],[777,219]]);
+road([[200,490],[255,502],[315,513],[355,515],[394,508],[430,490]]);
+road([[469,209],[479,228],[525,239],[575,235],[620,194],[670,198],[720,213],[777,219]]);
 road([[445,314],[472,296],[484,265],[512,251],[550,254],[578,281],[607,308],[665,313],[730,332],[795,334]]);
 road([[459,425],[515,418],[566,409],[620,413],[680,422],[736,435],[785,435]]);
-road([[464,508],[520,514],[576,507],[625,517],[685,522],[748,527]]);
+road([[475,575],[525,560],[557,532],[576,507],[625,517],[685,522],[748,527]]);
 const destinations=nodes.map((_,i)=>i).filter(i=>links[i].length===1);
 function route(from,to){const queue=[from],parent=new Map([[from,null]]);for(let k=0;k<queue.length&&!parent.has(to);k++)for(const next of links[queue[k]])if(!parent.has(next)){parent.set(next,queue[k]);queue.push(next);}const result=[];for(let n=to;n!==null&&n!==undefined;n=parent.get(n))result.unshift(n);return result.slice(1);}
 function wander(m,t){let w=walks.get(m);if(!w){const seed=Math.abs(m.markSeed||1);const n=seed%nodes.length;w={...nodes[n],at:n,route:[],pause:0,last:t,seed,face:1};walks.set(m,w);}const dt=Math.max(0,Math.min(.08,(t-w.last)/1000));w.last=t;
@@ -70,17 +70,15 @@ c.save();c.translate(480,330);c.scale(1.07,1.10);c.translate(-480,-330);path(sho
 c.save();c.translate(480,330);c.scale(1.025,1.035);c.translate(-480,-330);path(shore,'#d3e5c5');c.restore();path(shore,'#efe0b6','#f7ecd0',3);
 c.save();c.clip(new Path2D(shore));for(let i=0;i<2000;i++){let x=rand(i)*960,y=rand(i+770)*640;oval(x,y,.3+rand(i+14)*1.3,.5,i%2?'#a58f5120':'#fff9dd55');}c.restore();
 c.save();c.translate(480,325);c.scale(.91,.89);c.translate(-480,-325);const land=path(shore,grad(100,100,700,570,[[0,'#a9c38b'],[.45,'#c0cf96'],[1,'#a1ba80']]));c.clip(land);for(let i=0;i<2700;i++){const x=rand(i)*960,y=rand(i+60)*640;oval(x,y,1+rand(i+30)*3,rand(i+21)+.3,i%3?'#688b5030':'#e5e6ad55');}c.restore();
-function road(d,width=15){path(d,null,'#8d956046',width+4);path(d,null,'#e1cd9f',width);path(d,null,'#f5e6be',width-5);}
+// Paint the exact same network the guests walk, with all joins filled in one pass.
+const roadShape=new Path2D();for(let i=0;i<nodes.length;i++)for(const j of links[i])if(j>i){roadShape.moveTo(nodes[i].x,nodes[i].y);roadShape.lineTo(nodes[j].x,nodes[j].y);}
 c.lineCap='round';c.lineJoin='round';
-road('M 475 575 C 475 511 449 491 459 424 C 470 367 421 338 448 278 C 467 231 461 180 471 117',23);
-road('M 469 209 C 367 213 361 203 324 210 C 261 215 211 186 160 194');
-road('M 451 314 C 369 316 330 332 273 317 C 217 305 191 300 126 297');
-road('M 459 425 C 384 425 351 429 280 420 C 241 415 206 397 151 399');
-road('M 464 508 C 394 505 355 520 315 513 L 200 490');
-road('M 466 209 C 528 201 576 198 620 194 C 675 191 716 221 777 219');
-road('M 445 314 C 475 313 470 257 512 251 C 567 243 580 294 607 308 C 673 302 744 340 795 334');
-road('M 459 425 C 531 416 566 407 620 413 C 687 420 736 443 785 435');
-road('M 475 520 C 547 509 576 507 625 517 L 748 527');
+for(const [width,color] of [[19,'#657c4730'],[16,'#baaa80'],[13,'#e0cfaa'],[9,'#eadbb8']]){c.lineWidth=width;c.strokeStyle=color;c.stroke(roadShape);}
+// Small irregular paving seams replace the thick double-edged road appearance.
+for(let i=0;i<nodes.length;i++)for(const j of links[i])if(j>i){const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,length=Math.hypot(dx,dy);for(let d=8;d<length;d+=12){const x=a.x+dx*d/length,y=a.y+dy*d/length;line(x-dy/length*4,y+dx/length*4,x+dy/length*4,y-dx/length*4,'#aa99732b',.65);}}
+function roadDistance(x,y){let closest=Infinity;for(let i=0;i<nodes.length;i++)for(const j of links[i])if(j>i){const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,u=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy)));closest=Math.min(closest,Math.hypot(x-a.x-u*dx,y-a.y-u*dy));}return closest;}
+// Short cottage entry paths, tucked under the front verandas.
+positions.forEach(([x,y],i)=>{if(!cottages[i]?.built)return;const door={x:x+12,y:y+29},n=nodes.filter(p=>p.y>=door.y).sort((a,b)=>Math.hypot(a.x-door.x,a.y-door.y)-Math.hypot(b.x-door.x,b.y-door.y))[0];if(n&&Math.hypot(n.x-door.x,n.y-door.y)<85){path('M '+door.x+' '+door.y+' L '+n.x+' '+n.y,null,'#d8c49e',6);}});
 function bush(x,y,s=1){oval(x+3,y+3,15*s,8*s,'#3a624c22');for(let k=0;k<7;k++)oval(x+Math.cos(k)*9*s,y+Math.sin(k)*4*s,7*s,5*s,['#5f885c','#749960','#8da66b'][k%3]);}
 function palm(x,y,s=1,flip=1){c.save();c.translate(x,y);c.scale(s*flip,s);oval(12,8,31,8,'#325e4530');path('M 0 0 Q 11 -23 3 -56',null,'#816d4c',6);path('M -1 0 Q 9 -25 1 -56',null,'#c0a477',2);for(let k=0;k<7;k++){const a=k*Math.PI*2/7,dx=Math.cos(a)*36,dy=Math.sin(a)*15;path('M 3 -55 Q '+(dx*.65)+' '+(-75+dy)+' '+dx+' '+(-50+dy)+' Q '+(dx*.4)+' '+(-61+dy)+' 3 -55',['#3f7356','#53855b','#78a168'][k%3]);line(3,-55,dx,-50+dy,'#b1be7740',.7);}oval(3,-52,3,4,'#8d734c');c.restore();}
 function rock(x,y,s=1){path('M '+(x-9*s)+' '+y+' l '+3*s+' '+(-7*s)+' l '+10*s+' '+(-2*s)+' l '+7*s+' '+8*s+' l '+(-5*s)+' '+5*s+' Z','#919f8a');line(x-4*s,y-6*s,x+5*s,y-7*s,'#d4d4b6',2);}
@@ -98,6 +96,10 @@ for(const dx of [-wide+1,wide+4]){line(dx,11,dx,34,'#8d7451',2);line(dx+1,11,dx+
 if(stage>0){box(-wide-4,26,19,5,'#8a7953',1);for(let k=0;k<5;k++){oval(-wide+k*3,24,4,3,'#69945b');oval(-wide+k*3,22,1.5,1.5,k%2?'#e5bca2':'#c9937d');}lounger(wide-15,28);}
 if(stage>1){deck(-wide-6,-17,23,22);path('M '+(-wide-9)+' -19 l 22 -9 l 17 10 l -22 9 Z',roof[0]);for(let k=0;k<4;k++)line(-wide-5+k*7,-20,-wide+11+k*3,-11,'#dac2a566',1);}
 c.restore();}
+// Layered garden beds give each property its own soft edge without covering paths.
+positions.forEach(([x,y],i)=>{if(!cottages[i]?.built)return;oval(x+3,y+15,49,27,'#77975a18');for(let k=0;k<6;k++){const xx=x-36+k*13,yy=y+34+Math.sin(k)*3;if(roadDistance(xx,yy)<12)continue;oval(xx,yy,5,3,'#739363');for(let f=0;f<3;f++)oval(xx-3+f*3,yy-2,1.3,1.3,['#f4d4ac','#e3a89c','#f0e5b9'][i%3]);}});
+// Warm path lamps are placed beside junctions, never in the walking lane.
+for(const [x,y]of [[451,225],[426,315],[441,425],[410,487],[612,220],[767,345],[761,446]]){oval(x+3,y+3,7,2,'#304f3825');line(x,y,x,y-14,'#756449',1.7);box(x-3,y-18,6,6,'#e5c585',1);box(x-2,y-17,4,4,'#fff0b9',1);path('M '+(x-4)+' '+(y-18)+' l 4 -3 l 4 3 Z','#526c53');}
 // Pools and public gardens form the centre, rather than occupying leftover margins.
 if(A.pool){deck(490,272,96,116);box(500,280,76,92,'#eee5cc',20);box(506,286,64,80,grad(506,286,570,366,[[0,'#3d9dba'],[1,'#86d1ca']]),16);for(let k=0;k<16;k++){let yy=291+k*4;line(514,yy,560,yy+2,k%2?'#d6f3dd55':'#399cab22',.7);}line(507,306,515,306,'#f0e9d4',2);line(507,315,515,315,'#f0e9d4',2);for(let k=0;k<3;k++){lounger(581,286+k*30);umbrella(600,284+k*30);}bush(503,382,.7);bush(567,382,.8);}else{oval(540,329,49,56,'#a1b97b');bush(524,309);bush(564,347);label('POOL GARDEN',540,330,true);}
 if(A.garden){oval(390,393,39,48,'#7f9e6b');oval(390,393,31,39,'#d9c79e');oval(390,393,24,31,'#9eb77d');for(let k=0;k<12;k++){let ang=k*.53;oval(390+Math.cos(ang)*28,393+Math.sin(ang)*35,4,3,k%2?'#dcb3a1':'#f0d899');}box(379,389,23,7,'#9b7f59',2);line(381,396,381,402,'#715e45',2);line(399,396,399,402,'#715e45',2);}else bush(390,393,1.8);
@@ -126,6 +128,7 @@ bush(586,190,.45);box(581,194,10,7,'#aa7c59',2);label('CATMINT CAFÉ',535,232);
 // Mark ownership with survey stakes, leaving undeveloped land alive.
 positions.forEach(([x,y],i)=>{const cot=cottages[i];if(cot?.built){house(x,y,cot.stage,i,.72,cot.kind,cot.style);bush(x-42,y+22,.55);bush(x+48,y+4,.7);label(String(i+1).padStart(2,'0'),x,y+58);}else{for(const [dx,dy]of[[-34,-14],[36,-3],[-34,25],[36,35]]){line(x+dx,y+dy,x+dx,y+dy-6,'#9e8961',1.5);oval(x+dx,y+dy-6,2,1,'#f6e8c7');}bush(x-15,y+4,.55);bush(x+21,y-8,.7);box(x-11,y+15,23,16,'#f5e8c4',2);line(x,y+30,x,y+36,'#9c8058',2);c.fillStyle='#637758';c.font='bold 9px sans-serif';c.textAlign='center';c.fillText(String(i+1).padStart(2,'0'),x,y+26);}});
 for(const b of root.CoveResortEngine.BUSINESSES){const v=B[b.id];if(!v)continue;const {x,y}=b;deck(x-29,y-9,58,36);if(b.id==='restaurant'){house(x,y-8,2,0,.57);for(let k=0;k<3;k++){oval(x-20+k*20,y+21,7,4,'#efd9ab');oval(x-20+k*20,y+28,3,2,'#7a956d');}label('MOONLIT DINING',x,y+44);continue;}if(b.id==='kayak'){line(x-25,y-6,x+27,y-6,'#eee0b9',3);label('KAYAK JETTY',x,y+45);continue;}box(x-23,y-23,46,35,'#ecd9ad',2);box(x-27,y-29,54,12,'#8caa93',2);for(let k=0;k<6;k++)box(x-27+k*9,y-29,5,12,b.id==='juice'?'#edbc75':b.id==='bakery'?'#dca18a':'#d6d8b2');box(x-20,y-13,40,12,'#4a7568',2);box(x-27,y+2,54,8,'#bb9260',2);for(let k=0;k<(v.level||1)+1;k++)oval(x-17+k*12,y,3,3,b.id==='juice'?'#e5b44e':'#e7c591');if((v.level||0)>1){umbrella(x+24,y+19);oval(x+20,y+25,10,5,'#f2ddad');}label(b.name.toUpperCase(),x,y+44);}
+for(let i=0;i<130;i++){const x=125+rand(i+6100)*670,y=105+rand(i+7200)*410;if(roadDistance(x,y)<17||positions.some(([px,py])=>Math.abs(x-px)<56&&Math.abs(y-py)<49)||x>345&&x<605)continue;oval(x,y,5,2,'#79935b36');for(let k=0;k<3;k++){line(x+k*2,y,x+k*2-1,y-4,'#728f59',.7);oval(x+k*2-1,y-5,1,1,['#f5dfad','#d9afba','#e9ecc9'][i%3]);}}
 // Structured planting: keep mature trees clear of buildings and routes.
 for(const [x,y,s]of [[109,167,.85],[99,267,.8],[120,410,.85],[161,488,.7],[254,526,.75],[352,548,.7],[590,548,.7],[762,508,.7],[828,429,.8],[825,283,.85],[792,139,.8],[676,94,.8],[555,92,.65],[386,103,.75],[249,91,.7]])palm(x,y,s,x%2?1:-1);
 for(const [x,y]of [[343,139],[206,237],[314,336],[225,430],[596,217],[709,330],[663,450],[398,258],[803,361]]){bush(x,y,1.1);bush(x+13,y+5,.7);}
