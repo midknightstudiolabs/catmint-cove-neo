@@ -8,7 +8,7 @@ const STAGES=[{name:'Driftwood Cottage',cost:0,payout:24,stayMs:180000},{name:'S
 
 const BUILDINGS={cottage:{name:'Garden cottage',extra:0,capacity:0,pay:0,time:0},lodge:{name:'Family lodge',extra:1800,capacity:2,pay:6,time:60000},villa:{name:'Terrace villa',extra:3600,capacity:1,pay:24,time:30000}};
 
-const AMENITIES=[{id:'garden',name:'Botanical garden',cost:1800,bonus:.05},{id:'pool',name:'Lagoon pool',cost:4200,bonus:.10},{id:'cafe',name:'Terrace café',cost:6500,bonus:.15}];
+const AMENITIES=[{id:'garden',name:'Botanical garden',cost:1800,bonus:.05},{id:'pool',name:'Lagoon pool',cost:4200,bonus:.10},{id:'cafe',name:'Catmint Café',cost:6500,bonus:.15}];
 
 function bonus(g){return AMENITIES.reduce((n,a)=>n+(g.resort?.amenities?.[a.id]?a.bonus:0),0);}
 
@@ -77,7 +77,7 @@ const oldInit=init,oldSettle=settle,oldBuild=buildCottage;
 
 init=function(g,now=Date.now()){const s=oldInit(g,now);s.businesses ||= {};s.businessIncome ||= 0;return s;};
 
-function businessRate(g,b){const s=init(g),level=s.businesses[b.id]?.level||0,rooms=s.cottages.filter(c=>c.built&&!c.job).reduce((n,c)=>n+stats(c).capacity,0);return Math.floor((b.gross-b.expense)*level*Math.min(1,rooms/(b.need*2)));}
+function businessRate(g,b){const s=init(g),level=s.businesses[b.id]?.job?0:s.businesses[b.id]?.level||0,rooms=s.cottages.filter(c=>c.built&&!c.job).reduce((n,c)=>n+stats(c).capacity,0);return Math.floor((b.gross-b.expense)*level*Math.min(1,rooms/(b.need*2)));}
 
 function finishJobs(s,at){for(const c of s.cottages){if(c.job&&c.job.end<=at){const j=c.job;if(j.type==='build')c.built=true;else c[j.type]=j.target;c.job=null;c.guest=null;}}for(const b of Object.values(s.businesses)){if(b.job&&b.job.end<=at){b.level=b.job.target;b.job=null;b.lastPaid=at;}}}
 
@@ -97,7 +97,7 @@ settle=function(g,now=Date.now()){
 
 };
 
-function renovate(g,i,type,cost,target,minutes,now){settle(g,now);const c=init(g,now).cottages[i];if(!c?.built||c.job||g.shells<cost)return false;g.shells-=cost;c.guest=null;c.job={type,target,start:now,end:now+minutes*60000};return true;}
+function renovate(g,i,type,cost,target,minutes,now){settle(g,now);const c=init(g,now).cottages[i];if(!c?.built||c.job||g.shells<cost)return false;const guest=c.guest;if(guest){const fraction=Math.max(0,Math.min(1,(now-guest.checkInAt)/(guest.checkOutAt-guest.checkInAt)));const credit=Math.floor((guest.payout||0)*fraction);g.shells+=credit;g.resort.revenue+=credit;g.resort.lastRenovationCredit=credit;}g.shells-=cost;c.guest=null;c.job={type,target,start:now,end:now+minutes*60000};return true;}
 
 upgradeCottage=function(g,i,now=Date.now()){const c=init(g,now).cottages[i],next=c&&STAGES[c.stage+1];return !!next&&renovate(g,i,'stage',next.cost,c.stage+1,c.stage?60:15,now);};
 
@@ -110,6 +110,8 @@ function buyBusiness(g,id,now=Date.now()){settle(g,now);const s=init(g,now),b=BU
 function specialize(g,i,service,now=Date.now()){if(!['family','retreat','standard'].includes(service)||init(g,now).cottages[i]?.service===service)return false;return renovate(g,i,'service',600,service,15,now);}
 function customize(g,i,style){const c=init(g).cottages[i];if(!c?.built||c.job||!['sage','terracotta','ocean'].includes(style))return false;c.style=style;return true;}
 
-root.CoveResortEngine={buildCost,BUILDINGS,AMENITIES,BUSINESSES,businessRate,buyBusiness,specialize,customize,bonus,buyAmenity,MAX_COTTAGES,BUILD_COST,STAGES,OFFLINE_CAP,init,stats,settle,buildCottage,upgradeCottage,upgradeBed};
+function overview(g){const s=init(g),open=s.cottages.filter(c=>c.built&&!c.job),beds=open.reduce((n,c)=>n+stats(c).capacity,0),hourly=open.reduce((n,c)=>{const z=stats(c);return n+Math.floor(z.payout*z.capacity*(1+bonus(g)))*3600000/z.stayMs;},0)+BUSINESSES.reduce((n,b)=>n+businessRate(g,b)*12,0),jobs=[...s.cottages.map(c=>c.job),...Object.values(s.businesses).map(b=>b.job)].filter(Boolean);let next='Your resort is fully developed. Try a different room style or enjoy the view.';if(!s.cottages.some(c=>c.built||c.job))next='Tap any empty plot: your first garden cottage is free.';else if(jobs.length)next=jobs.length+' renovation'+(jobs.length===1?'':'s')+' in progress. Other properties keep earning.';else{const b=BUSINESSES.find(b=>!s.businesses[b.id]&&open.length>=b.need);const room=s.cottages.find(c=>c.built&&c.bed<2);if(b)next='Next idea: '+b.name+' · '+b.cost+' Shells. Guests support its sales.';else if(room)next='Upgrade a bed for '+120*(room.bed+1)+' Shells to improve earnings per stay.';else if(open.some(c=>c.stage<2))next='Renovate a cottage to increase its capacity and earnings.';else if(AMENITIES.some(a=>!s.amenities[a.id]))next='Add an amenity to improve future booking income.';else if(BUSINESSES.some(b=>(s.businesses[b.id]?.level||0)<3))next='Expand a business to increase its sales capacity.';else if(open.length<16)next='Open another property to welcome more guests.';}
+return {open:open.length,beds,guests:open.reduce((n,c)=>n+(c.guest?.party?.members?.length||0),0),hourly:Math.floor(hourly),jobs:jobs.length,next};}
+root.CoveResortEngine={overview,buildCost,BUILDINGS,AMENITIES,BUSINESSES,businessRate,buyBusiness,specialize,customize,bonus,buyAmenity,MAX_COTTAGES,BUILD_COST,STAGES,OFFLINE_CAP,init,stats,settle,buildCottage,upgradeCottage,upgradeBed};
 
 })(globalThis);

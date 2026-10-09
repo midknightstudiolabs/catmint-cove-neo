@@ -25,7 +25,7 @@ if(!w.route.length){const options=destinations.filter(n=>n!==w.at&&n!==w.previou
 let distance=dt*w.speed;while(w.route.length&&distance>0){const n=w.route[0],p=nodes[n],dx=p.x-w.x,dy=p.y-w.y,d=Math.hypot(dx,dy);if(Math.abs(dx)>.1)w.face=dx<0?-1:1;if(d<=distance){w.x=p.x;w.y=p.y;w.at=n;w.route.shift();distance-=d;if(!w.route.length)w.pause=7+random()*17;}else{w.x+=dx/d*distance;w.y+=dy/d*distance;distance=0;}}
 return {...w,moving:w.pause<=0};}
 function landscape(c,{cottages,selected,amenities={},businesses={},t,a}){
-const stateKey=JSON.stringify([cottages.map(x=>[x.built,x.stage,x.bed,x.kind,x.style]),amenities,businesses]);
+const stateKey=JSON.stringify([cottages.map(x=>[x.built,x.stage,x.bed,x.kind,x.style]),amenities,Object.entries(businesses).map(([id,b])=>[id,b.level,b.job?.end])]);
 if(!cache||key!==stateKey){cache=document.createElement('canvas');cache.width=1920;cache.height=1280;const g=cache.getContext('2d');g.scale(2,2);paint(g,cottages,amenities,businesses);key=stateKey;}
 c.drawImage(cache,0,0,960,640);
 a.cat?.(c,{coatKey:'midknight',mascot:true,markSeed:777,age:'adult',pose:'loafing'},477,554,.4,t);
