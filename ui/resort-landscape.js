@@ -38,6 +38,17 @@ function renovationCrew(c,a,x,y,t,seed){
  c.translate(bx-7,by-7);c.rotate(-.5+swing*.65);c.fillStyle='#916948';c.fillRect(-1,-10,2,11);c.fillStyle='#647c78';c.fillRect(-4,-12,8,4);c.restore();
  c.save();c.fillStyle='#bc956a';for(let k=0;k<3;k++)c.fillRect(x-32,y+13-k*3,15,2);c.restore();
 }
+// Visual room cues follow real bookings; no saved mood or reward changes.
+const roomCues=new WeakMap();
+function resting(cot,now){const g=cot.guest;return !!g&&now>=g.checkInAt+(g.checkOutAt-g.checkInAt)*.55;}
+function drawRoomCues(c,cottages,a,t){const now=Date.now();
+ cottages.forEach((cot,i)=>{let state=roomCues.get(cot);if(!state){state={guest:cot.guest,exit:null};roomCues.set(cot,state);}
+ if(state.guest!==cot.guest){const old=state.guest;if(old&&!cot.job&&old.checkOutAt<=now&&now-old.checkOutAt<3000)state.exit={at:t,cat:old.party?.members?.[0],happy:cot.bed>0||cot.stage>0};state.guest=cot.guest;}
+ const [x,y]=positions[i];if(cot.job||!cot.built){state.exit=null;return;}
+ if(cot.guest){const asleep=resting(cot,now);c.save();c.fillStyle='#fff7e7ed';c.strokeStyle='#9db28c';c.lineWidth=.7;c.beginPath();c.roundRect(x-19,y-42,38,15,6);c.fill();c.stroke();c.fillStyle='#426553';c.textAlign='center';c.font='bold 8px sans-serif';c.fillText(asleep?'Zzz':'🐾 '+(cot.guest.party?.members?.length||1),x,y-32);c.restore();}
+ if(state.exit){const age=t-state.exit.at;if(age>5000){state.exit=null;return;}const xx=x+12+Math.min(age/5000,1)*19,yy=y+30+age/5000*12;c.save();c.globalAlpha=Math.min(1,(5000-age)/1000);if(state.exit.cat)a.cat?.(c,{...state.exit.cat,pose:'exploring',face:1},xx,yy,.32,t);c.textAlign='center';c.font='bold 13px sans-serif';c.fillStyle=state.exit.happy?'#c57383':'#58776d';c.fillText(state.exit.happy?'♥':'Zzz',xx,yy-23-Math.sin(age/1000)*2);c.restore();}
+ });
+}
 function landscape(c,{cottages,selected,amenities={},businesses={},t,a}){
 const stateKey=JSON.stringify([cottages.map(x=>[x.built,x.stage,x.bed,x.kind,x.style]),amenities,Object.entries(businesses).map(([id,b])=>[id,b.level,b.job?.end])]);
 if(!cache||key!==stateKey){cache=document.createElement('canvas');cache.width=1920;cache.height=1280;const g=cache.getContext('2d');g.scale(2,2);paint(g,cottages,amenities,businesses);key=stateKey;}
@@ -55,7 +66,7 @@ const p=slots[selected];if(p){c.save();c.strokeStyle='#fff1b6';c.lineWidth=2;c.s
 // Activities use booked guests; no extra cats are added to the player's roster.
 const visitors=cottages.flatMap((cot,plot)=>!cot.built||cot.job?[]:(cot.guest?.party?.members||[]).map(m=>({cot,plot,m})));
 for(let i=0;i<visitors.length;i++){
-const {cot,plot,m}=visitors[i];if(!cot.built||cot.job||!cot.guest?.party?.members?.length)continue;
+const {cot,plot,m}=visitors[i];if(!cot.built||cot.job||!cot.guest?.party?.members?.length||resting(cot,Date.now()))continue;
 const phase=(t/26000+i*.173)%1,forward=phase<.5,u=forward?phase*2:(1-phase)*2;
 if(i<18&&i%6===5&&businesses.kayak?.level&&!businesses.kayak.job){const x=871+Math.sin(t/11000+i)*18,y=463+u*61;c.save();c.fillStyle='#efd49d';c.beginPath();c.ellipse(x,y,7,19,.12,0,7);c.fill();a.cat?.(c,{...m,pose:'loafing'},x,y+3,.28,t);c.strokeStyle='#755f41';c.lineWidth=2;c.beginPath();c.moveTo(x-12,y-7+Math.sin(t/550)*3);c.lineTo(x+12,y+7);c.stroke();c.restore();continue;}
 if(i<18&&i%6===4){const shop=root.CoveResortEngine.BUSINESSES.filter(b=>b.id!=='kayak'&&businesses[b.id]?.level&&!businesses[b.id].job)[Math.floor(i/6)%3];if(shop){a.cat?.(c,{...m,pose:'loafing'},shop.x+12,shop.y+24,.32,t);continue;}}
@@ -69,6 +80,7 @@ if(i<16&&i%4===3&&amenities.cafe){a.cat?.(c,{...m,pose:'loafing'},502+(Math.floo
 const q=wander(m,t);a.cat?.(c,{...m,pose:q.moving?'exploring':'loafing',trotting:false,face:q.face},q.x,q.y+2,.34,t);
 }
 
+drawRoomCues(c,cottages,a,t);
 }
 function paint(c,cottages,A,B){
 const rand=n=>{const v=Math.sin(n*127.1+311.7)*43758.5453;return v-Math.floor(v);};
