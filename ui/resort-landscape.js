@@ -24,14 +24,28 @@ if(w.pause>0){w.pause-=dt;return {...w,moving:false};}
 if(!w.route.length){const options=destinations.filter(n=>n!==w.at&&n!==w.previous);const to=options[Math.floor(random()*options.length)];w.previous=w.at;w.route=route(w.at,to);w.speed=12+random()*7;}
 let distance=dt*w.speed;while(w.route.length&&distance>0){const n=w.route[0],p=nodes[n],dx=p.x-w.x,dy=p.y-w.y,d=Math.hypot(dx,dy);if(Math.abs(dx)>.1)w.face=dx<0?-1:1;if(d<=distance){w.x=p.x;w.y=p.y;w.at=n;w.route.shift();distance-=d;if(!w.route.length)w.pause=7+random()*17;}else{w.x+=dx/d*distance;w.y+=dy/d*distance;distance=0;}}
 return {...w,moving:w.pause<=0};}
+// Decorative crew uses existing cat art; never changes guests, saves or job timing.
+function renovationCrew(c,a,x,y,t,seed){
+ c.save();
+ const phase=(t/7000+seed*.137)%1, travel=phase<.42?phase/.42:phase<.5?1:phase<.92?1-(phase-.5)/.42:0;
+ const moving=phase<.42||phase>=.5&&phase<.92, wx=x-24+travel*38, wy=y+24;
+ a.cat?.(c,{coatKey:'ginger',markSeed:8200+seed,age:'adult',pose:moving?'exploring':'loafing',face:phase<.5?1:-1},wx,wy,.3,t);
+ // A short plank travels with the delivery cat, inside the worksite.
+ c.fillStyle='#ad8052';c.fillRect(wx-9,wy-7,18,3);c.fillStyle='#dec19a';c.fillRect(wx-8,wy-7,16,1);
+ const bx=x+26,by=y+4, swing=Math.sin(t/210+seed);
+ a.cat?.(c,{coatKey:'greytab',markSeed:9200+seed,age:'adult',pose:'loafing',face:-1},bx,by,.32,t);
+ // Small hammer pivots beside the paw; calm working rhythm, no screen shake.
+ c.translate(bx-7,by-7);c.rotate(-.5+swing*.65);c.fillStyle='#916948';c.fillRect(-1,-10,2,11);c.fillStyle='#647c78';c.fillRect(-4,-12,8,4);c.restore();
+ c.save();c.fillStyle='#bc956a';for(let k=0;k<3;k++)c.fillRect(x-32,y+13-k*3,15,2);c.restore();
+}
 function landscape(c,{cottages,selected,amenities={},businesses={},t,a}){
 const stateKey=JSON.stringify([cottages.map(x=>[x.built,x.stage,x.bed,x.kind,x.style]),amenities,Object.entries(businesses).map(([id,b])=>[id,b.level,b.job?.end])]);
 if(!cache||key!==stateKey){cache=document.createElement('canvas');cache.width=1920;cache.height=1280;const g=cache.getContext('2d');g.scale(2,2);paint(g,cottages,amenities,businesses);key=stateKey;}
 c.drawImage(cache,0,0,960,640);
 a.cat?.(c,{coatKey:'midknight',mascot:true,markSeed:777,age:'adult',pose:'loafing'},477,554,.4,t);
 // Jobs occupy fixed lots; only the progress fill changes each frame.
-for(let i=0;i<cottages.length;i++){const j=cottages[i].job;if(!j)continue;const [x,y]=positions[i];c.fillStyle='#f2e3b9dd';c.fillRect(x-40,y-28,80,63);c.strokeStyle='#967147';c.lineWidth=2;for(let k=0;k<4;k++){c.beginPath();c.moveTo(x-38+k*25,y-35);c.lineTo(x-38+k*25,y+37);c.stroke();}c.fillStyle='#365c50';c.fillRect(x-40,y+31,80,12);c.fillStyle='#dbb65c';c.fillRect(x-38,y+33,76*Math.max(0,Math.min(1,(Date.now()-j.start)/(j.end-j.start))),8);c.font='bold 8px sans-serif';c.textAlign='center';c.fillStyle='#365c50';c.fillText('RENOVATING',x,y+9);}
-for(const b of root.CoveResortEngine.BUSINESSES){const v=businesses[b.id];if(!v)continue;const {x,y}=b;if(v.job){c.fillStyle='#294d43';c.fillRect(x-27,y+26,54,8);c.fillStyle='#e6be64';c.fillRect(x-26,y+27,52*Math.max(0,Math.min(1,(Date.now()-v.job.start)/(v.job.end-v.job.start))),6);}else if(b.id==='kayak'){for(let k=0;k<2;k++){const yy=y+18+Math.sin(t/1500+k)*4;c.fillStyle=k?'#d39b63':'#e9d5a1';c.beginPath();c.ellipse(x+16+k*16,yy,5,17,.3,0,7);c.fill();c.strokeStyle='#6a6550';c.beginPath();c.moveTo(x+9+k*16,yy-8);c.lineTo(x+23+k*16,yy+8);c.stroke();}}else if(b.id!=='juice'){c.strokeStyle='#ffffff77';for(let k=0;k<3;k++){c.beginPath();c.moveTo(x+k*5-5,y-22);c.quadraticCurveTo(x+k*5+Math.sin(t/650+k)*3,y-28,x+k*5-5,y-33);c.stroke();}}}
+for(let i=0;i<cottages.length;i++){const j=cottages[i].job;if(!j)continue;const [x,y]=positions[i];c.fillStyle='#f2e3b9dd';c.fillRect(x-40,y-28,80,63);c.strokeStyle='#967147';c.lineWidth=2;for(let k=0;k<4;k++){c.beginPath();c.moveTo(x-38+k*25,y-35);c.lineTo(x-38+k*25,y+37);c.stroke();}c.fillStyle='#365c50';c.fillRect(x-40,y+31,80,12);c.fillStyle='#dbb65c';c.fillRect(x-38,y+33,76*Math.max(0,Math.min(1,(Date.now()-j.start)/(j.end-j.start))),8);c.font='bold 8px sans-serif';c.textAlign='center';c.fillStyle='#365c50';c.fillText('RENOVATING',x,y+9);renovationCrew(c,a,x,y,t,i);}
+for(const b of root.CoveResortEngine.BUSINESSES){const v=businesses[b.id];if(!v)continue;const {x,y}=b;if(v.job){renovationCrew(c,a,x,y-5,t,40+root.CoveResortEngine.BUSINESSES.indexOf(b));c.fillStyle='#294d43';c.fillRect(x-27,y+26,54,8);c.fillStyle='#e6be64';c.fillRect(x-26,y+27,52*Math.max(0,Math.min(1,(Date.now()-v.job.start)/(v.job.end-v.job.start))),6);}else if(b.id==='kayak'){for(let k=0;k<2;k++){const yy=y+18+Math.sin(t/1500+k)*4;c.fillStyle=k?'#d39b63':'#e9d5a1';c.beginPath();c.ellipse(x+16+k*16,yy,5,17,.3,0,7);c.fill();c.strokeStyle='#6a6550';c.beginPath();c.moveTo(x+9+k*16,yy-8);c.lineTo(x+23+k*16,yy+8);c.stroke();}}else if(b.id!=='juice'){c.strokeStyle='#ffffff77';for(let k=0;k<3;k++){c.beginPath();c.moveTo(x+k*5-5,y-22);c.quadraticCurveTo(x+k*5+Math.sin(t/650+k)*3,y-28,x+k*5-5,y-33);c.stroke();}}}
 // Soft cloud shadows drift across the sea; pool highlights stay inside the water.
 c.save();c.globalAlpha=.10;c.fillStyle='#fff';for(let i=0;i<3;i++){const x=(t*.002+i*330)%1100-60;c.beginPath();c.ellipse(x,48+i*6,46,10,0,0,7);c.fill();}c.restore();
 if(amenities.pool){c.save();c.beginPath();c.roundRect(506,286,64,80,16);c.clip();c.strokeStyle='#ddffed55';for(let k=0;k<8;k++){c.beginPath();c.ellipse(536+Math.sin(t/1500+k)*4,290+k*11,29,2,0,0,Math.PI);c.stroke();}c.restore();}
