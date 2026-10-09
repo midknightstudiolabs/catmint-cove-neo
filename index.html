@@ -2469,8 +2469,8 @@ details.garden-list{margin:12px 0}details.garden-list>summary{cursor:pointer;fon
 
 <script src="ui/product-analytics.js?v=1"></script>
 <script src="ui/memory-rewards.js?v=1"></script><script src="ui/endless-rewards.js?v=1"></script><link rel="stylesheet" href="ui/little-matches.css?v=14"><script src="ui/little-matches.js?v=18"></script>
-<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=3"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><script src="ui/cafe-engine.js?v=28"></script><script src="ui/cafe-scene.js?v=36"></script><script src="ui/cafe-kiosk.js?v=71"></script><script src="ui/resort-engine.js?v=3"></script><script src="ui/resort-scene.js?v=3"></script><script src="ui/resort-view.js?v=3"></script>
-<link rel="stylesheet" href="ui/cove-stories.css?v=2"><script src="ui/cove-stories.js?v=2"></script><script src="ui/wishing-well.js?v=1"></script>
+<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=13"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><script src="ui/cafe-engine.js?v=28"></script><script src="ui/cafe-scene.js?v=36"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=13"></script><script src="ui/resort-landscape.js?v=16"></script><script src="ui/resort-scene.js?v=7"></script><script src="ui/resort-view.js?v=13"></script>
+<link rel="stylesheet" href="ui/cove-stories.css?v=6"><script src="ui/cove-stories.js?v=6"></script><script src="ui/wishing-well.js?v=1"></script>
 <script>
 (() => {
 "use strict";
@@ -2492,7 +2492,7 @@ const SAVE_VERSIONS = [9];
 // a cache key that changes on every deploy (the file's Last-Modified moves) —
 // appended to the runtime asset fetches so audio never loads stale after an update
 const BUILD = String(Date.parse(document.lastModified) || 0) + ".v9";
-const APP_VERSION = "3.4.9";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
+const APP_VERSION = "3.4.10";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
 // only bust on the hosted web build — the native app bundles assets locally
 const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ? "&" : "?") + "v=" + BUILD : u;
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
@@ -19211,7 +19211,7 @@ function frameBody(now) {
     if (steps === 6) simAccum = 0;          // fell behind; drop the backlog rather than spiral
     updateDayNight(frameDt);
     // Keep simulation/economy running, but do not paint behind the opaque Café.
-    if (cafeVisible) { _panelAcc = 0; return; }
+    if (cafeVisible || (panels.resort && !panels.resort.hidden)) { _panelAcc = 0; return; }
     // A full-screen sheet hides nearly all of the Cove, so repaint it at ~15 fps (simulation above still runs every tick).
     if (anyPanelOpen()) { _panelAcc += frameDt; if (_panelAcc < 1 / 15) return; renderScene(_panelAcc); _panelAcc = 0; }
     else { _panelAcc = 0; renderScene(frameDt); }
@@ -21653,6 +21653,7 @@ function neoOpenHomestead(kind){
   sheet.hidden=false;
   sheet.innerHTML=`<div class="gh-top"><button class="btn gh-back" aria-label="Back to the Cove">‹ Cove</button><h2 class="gh-title">Cove Garden</h2><span class="gh-end"></span></div><div class="gh-cta-slot"></div><div class="gh-content"></div>`;
   const content=sheet.querySelector('.gh-content');
+  const resortLink=document.createElement('button');resortLink.className='btn';resortLink.type='button';resortLink.textContent='‹ Resort';resortLink.setAttribute('aria-label','Back to Catmint Resort');resortLink.onclick=()=>{window.CoveGardenScene?.stop();clearInterval(neoHomesteadTimer);clearInterval(neoFieldTimer);neoOpenResort();};sheet.querySelector('.gh-end').append(resortLink);
   const cafeLink=document.createElement('button');cafeLink.className='btn';cafeLink.type='button';cafeLink.textContent='Visit café';cafeLink.onclick=()=>neoOpenHomestead('cafe');sheet.querySelector('.gh-end').append(cafeLink);
   const loop=document.createElement('p');loop.className='garden-loop';loop.textContent='Your harvest fills the café pantry. Crops stay safe while you’re away.';content.append(loop);
   sheet.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{neoGardenTab=b.dataset.tab;neoOpenHomestead('garden');});
@@ -22048,7 +22049,7 @@ function neoOpenWishingWell(){
 }
 function neoOpenCoffeeKiosk(){
   neoHomestead();CoveCafeEngine.init(G,Date.now());
-  CoveCafeView.open({game:()=>G,close:()=>{closeAllPanels();neoMaybeShowBrewOverview();neoScheduleCafeReminder();},save, hud:syncHud,register:p=>panels.coffee=p,garden:()=>neoOpenHomestead('garden'),firstBrewOverview:()=>neoFirstBrewOverview(),
+  CoveCafeView.open({resort:()=>neoOpenResort(),game:()=>G,close:()=>{closeAllPanels();neoMaybeShowBrewOverview();neoScheduleCafeReminder();},save, hud:syncHud,register:p=>panels.coffee=p,garden:()=>neoOpenHomestead('garden'),firstBrewOverview:()=>neoFirstBrewOverview(),
     ready:()=>({count:neoReadyPlots().length,yields:neoReadySummary()}),blessing:()=>blessingActive(),harvestAll:()=>neoHarvestAll(),offer:()=>showBlessingOffer(),sfx:k=>{try{sfx(k)}catch(e){}},soundMode:()=>neoCafeSoundMode(),setSound:v=>neoCafeSoundSet(v),
     actors:()=>cats.filter(c=>!c.visitor).map(c=>{const copy=new Cat({coatKey:c.coatKey,mascot:c.mascot,markSeed:c.markSeed,bornAt:c.bornAt,star:c.star,name:c.name,traits:c.traits,x:0,y:0});copy.worn=[...(c.worn||[])];copy.cafeKey=JSON.stringify([c.bornAt,c.markSeed,c.coatKey,c.mascot]);return copy;}),
     cat:(ctx,c,x,y,scale,t,walking)=>{if(!c)return;ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);c.state=walking?'exploring':'loafing';c.trotting=walking;c.walk=t/130;c.walkAmt=Number(walking)||0;c.face=1;c.stateT=t/1000;c.bob=t/900;c.tail=t/650;c.blink=(t/1000+x*.017)%4.7<.14?0:3;drawCat(ctx,c,true);ctx.restore();},
@@ -22061,14 +22062,14 @@ const neoGuestDrawCache=new Map();
 function neoDrawStoryGuest(ctx,m,x,y,scale,t){
  const key=[m.coatKey,m.markSeed,m.mascot,m.age].join('|');let guest=neoGuestDrawCache.get(key);
  if(!guest){guest=new Cat({coatKey:m.coatKey,markSeed:m.markSeed,mascot:!!m.mascot,star:1,bornAt:m.age==='kitten'?Date.now():Date.now()-KITTEN_MS*3,x:0,y:0});neoGuestDrawCache.set(key,guest);if(neoGuestDrawCache.size>80)neoGuestDrawCache.delete(neoGuestDrawCache.keys().next().value);}
- guest.worn=[];guest.state=m.pose||'loafing';guest.trotting=false;guest.walkAmt=guest.state==='exploring'?.65:0;guest.walk=t/130;guest.face=1;guest.stateT=t/1000;guest.bob=t/900;guest.tail=t/650;guest.blink=3;
+ guest.worn=[];guest.state=m.pose||'loafing';guest.trotting=!!m.trotting;guest.walkAmt=guest.state==='exploring'?(m.trotting?1:.65):0;guest.walk=t/130;guest.face=m.face===-1?-1:1;guest.stateT=t/1000;guest.bob=t/900;guest.tail=t/650;guest.blink=3;
  ctx.save();ctx.translate(x,y);ctx.scale(scale,scale);drawCat(ctx,guest,true);ctx.restore();
 }
 function neoStoryAdapter(){return {game:()=>G,save,cat:neoDrawStoryGuest};}
 function neoOpenResort(){
  closeAllPanels();CoveStories.open('resort-001',neoStoryAdapter(),()=>{
  CoveResortEngine.init(G,Date.now());save();
- CoveResortView.open({game:()=>G,close:()=>{closeAllPanels();save();},save,register:p=>panels.resort=p,cat:neoDrawStoryGuest});});
+ CoveResortView.open({cafe:()=>neoOpenHomestead('cafe'),garden:()=>neoOpenHomestead('garden'),game:()=>G,close:()=>{closeAllPanels();save();},save,register:p=>panels.resort=p,cat:neoDrawStoryGuest});});
 }
 
 syncNavH();
