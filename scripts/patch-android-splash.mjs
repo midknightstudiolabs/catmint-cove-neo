@@ -23,7 +23,7 @@ const after =
   "    </style>";
 
 const styles = readFileSync(stylesPath, "utf8");
-if (!styles.includes(before)) {
+if (!styles.includes(before) && !styles.includes(after)) {
   console.error("::error::Capacitor android template changed — update scripts/patch-android-splash.mjs");
   process.exit(1);
 }
@@ -56,7 +56,7 @@ const mainAfter =
   "}";
 
 const main = readFileSync(mainPath, "utf8");
-if (!main.includes(mainBefore)) {
+if (!main.includes(mainBefore) && !main.includes("SplashScreen.installSplashScreen(this)")) {
   console.error("::error::Capacitor MainActivity template changed — update scripts/patch-android-splash.mjs");
   process.exit(1);
 }

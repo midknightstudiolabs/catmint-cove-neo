@@ -14,6 +14,9 @@
       "overlaysWebView": true,
       "style": "DARK",
       "backgroundColor": "#00000000"
+    },
+    "SystemBars": {
+      "insetsHandling": "disable"
     }
   },
   "android": {
@@ -26,7 +29,6 @@
       "@capacitor/preferences",
       "@capacitor/share",
       "@capacitor/splash-screen",
-      "@capacitor/status-bar",
       "@revenuecat/purchases-capacitor",
       "@capacitor-community/admob"
     ]

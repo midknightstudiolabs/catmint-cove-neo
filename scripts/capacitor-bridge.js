@@ -24,7 +24,7 @@
    *      Info.plist also sets UIStatusBarHidden; this covers Android + any
    *      re-show after a system event. ---- */
   try {
-    if (P.StatusBar) {
+    if (Cap.getPlatform() === 'ios' && P.StatusBar) {
       P.StatusBar.setOverlaysWebView({ overlay: true });
       P.StatusBar.hide();
       P.App && P.App.addListener("resume", function () { try { P.StatusBar.hide(); } catch (e) {} });

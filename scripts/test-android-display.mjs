@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+const files=['android/app/src/main/AndroidManifest.xml','android/app/build.gradle','android/gradle.properties','android/app/proguard-rules.pro','android/app/src/main/java/com/midknightstudiolabs/catmintcove/MainActivity.java'];
+execFileSync(process.execPath,['scripts/configure-android-display.mjs']);const first=files.map(f=>fs.readFileSync(f,'utf8'));execFileSync(process.execPath,['scripts/configure-android-display.mjs']);assert.deepEqual(files.map(f=>fs.readFileSync(f,'utf8')),first);
+assert.equal((first[0].match(/android:appCategory=/g)||[]).length,1);assert(!first[0].includes('screenOrientation'));assert(first[0].includes('resizeableActivity="true"'));
+assert(first[1].includes('proguard-android-optimize.txt'));assert(first[1].includes('minifyEnabled true'));assert(first[1].includes('shrinkResources true'));assert(!first[3].includes('-dontoptimize'));assert(!first[3].includes('-keep class com.getcapacitor.**'));
+assert(first[4].includes('WindowCompat.enableEdgeToEdge'));assert(first[4].includes('Type.displayCutout()'));assert(first[4].includes('Math.max(safe.bottom, ime.bottom)'));assert(!first[4].includes('setStatusBarColor'));
+const config=JSON.parse(fs.readFileSync('capacitor.config.json','utf8'));assert(!config.android.includePlugins.includes('@capacitor/status-bar'));assert.equal(config.plugins.SystemBars.insetsHandling,'disable');
+console.log('PASS idempotent native generation, unrestricted resize, optimizing R8, modern inset APIs and removal of legacy Android StatusBar plugin');

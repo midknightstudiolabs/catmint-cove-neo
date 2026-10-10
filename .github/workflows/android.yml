@@ -83,42 +83,8 @@ jobs:
           grep -n "windowSplashScreenBackground" android/app/src/main/res/values/styles.xml
           grep -n "installSplashScreen" android/app/src/main/java/com/midknightstudiolabs/catmintcove/MainActivity.java
 
-      - name: Lock the app to portrait
-        run: |
-          M=android/app/src/main/AndroidManifest.xml
-          grep -q 'android:screenOrientation' "$M" || \
-            sed -i -E 's#(\s*)android:name="\.MainActivity"#\1android:screenOrientation="portrait"\n\1android:name=".MainActivity"#' "$M"
-          grep -n 'screenOrientation' "$M"
-
-      - name: Enable code shrinking (R8) + resource shrinking
-        run: |
-          # Play Console flags the app as "not optimized" without this — Capacitor's
-          # default template ships minifyEnabled false. Capacitor's own AAR bundles
-          # consumer ProGuard rules for its bridge, but we add an explicit safety net
-          # so the JS bridge (@JavascriptInterface / plugin reflection) and our own
-          # package survive R8 even if that ever changes.
-          G=android/app/build.gradle
-          sed -i "s/minifyEnabled false/minifyEnabled true\n            shrinkResources true/" "$G"
-          grep -q "minifyEnabled true" "$G" || { echo "::error::minifyEnabled not enabled — Capacitor template format changed, fix the sed"; exit 1; }
-          grep -q "shrinkResources true" "$G" || { echo "::error::shrinkResources not enabled"; exit 1; }
-          grep -nE "minifyEnabled|shrinkResources" "$G"
-
-          P=android/app/proguard-rules.pro
-          printf '%s\n' \
-            '' \
-            '# --- Catmint Cove: keep the Capacitor bridge + our own package intact ---' \
-            '-keep class com.getcapacitor.** { *; }' \
-            '-keep @com.getcapacitor.annotation.CapacitorPlugin class * { *; }' \
-            '-keepclassmembers class * {' \
-            '    @com.getcapacitor.PluginMethod <methods>;' \
-            '}' \
-            '-keepclassmembers class * {' \
-            '    @android.webkit.JavascriptInterface <methods>;' \
-            '}' \
-            '-keep class com.midknightstudiolabs.catmintcove.** { *; }' \
-            '-dontwarn com.getcapacitor.**' \
-            >> "$P"
-          grep -q "com.getcapacitor" "$P" || { echo "::error::proguard-rules.pro not patched"; exit 1; }
+      - name: Configure adaptive display and optimized R8
+        run: node scripts/configure-android-display.mjs
 
       - name: Stamp the version
         run: |
