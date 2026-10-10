@@ -21,7 +21,9 @@ if(!entry){entry=st.entries[id]={panel:0,status:'reading',discoveredAt:Date.now(
 let timer=null,paused=false,closed=false;
 
 const pause=document.createElement('button');pause.type='button';pause.className='comic-pause';pause.textContent='Pause';pause.setAttribute('aria-pressed','false');dlg.querySelector('.comic-actions').insertBefore(pause,dlg.querySelector('.comic-next'));
-function schedule(){clearTimeout(timer);if(closed||paused||document.hidden||panel>=story.panels.length-1)return;const words=story.panels[panel][1].split(/\s+/).length;timer=setTimeout(()=>{panel++;if(!replay){entry.panel=panel;a.save();}render();schedule();},Math.max(5400,2200+words*330));}
+function schedule(){clearTimeout(timer);if(closed||paused||document.hidden||panel>=story.panels.length-1)return;const words=story.panels[panel][1].split(/\s+/).length;timer=setTimeout(advance,Math.max(5400,2200+words*330));}
+function advance(){if(closed||panel>=story.panels.length-1)return;clearTimeout(timer);panel++;if(!replay){entry.panel=panel;a.save();}render();schedule();}
+dlg.addEventListener('click',e=>{if(e.target.closest('button,a,input,select,textarea'))return;advance();});
 function visibility(){render();schedule();}document.addEventListener('visibilitychange',visibility);
 function finish(skipped){closed=true;clearTimeout(timer);document.removeEventListener('visibilitychange',visibility);if(!replay){entry.status=skipped?'skipped':'complete';entry.panel=panel;entry.finishedAt=Date.now();a.save();}dlg.close();dlg.remove();active=null;previous?.focus?.({preventScroll:true});done?.();}
 function render(){
@@ -30,7 +32,7 @@ grid.dataset.count=String(story.panels.length);
 Array.from(grid.children).forEach((f,i)=>{f.classList.toggle('is-revealed',i<=panel);f.classList.toggle('is-current',i===panel);f.setAttribute('aria-hidden',String(i>panel));});
 dlg.classList.toggle('is-paused',paused||document.hidden);
 const last=panel===story.panels.length-1;dlg.classList.toggle('is-complete',last);
-dlg.querySelector('.comic-position').textContent=last?'A little beginning. Your turn now.':(panel+1)+' / '+story.panels.length+' · '+(paused?'Paused':'Let the story unfold');const next=dlg.querySelector('.comic-next');next.hidden=!last;next.textContent=replay?'Back to Journal':story.destination;pause.hidden=last;pause.textContent=paused?'Resume':'Pause';pause.setAttribute('aria-pressed',String(paused));
+dlg.querySelector('.comic-position').textContent=last?'A little beginning. Your turn now.':(panel+1)+' / '+story.panels.length+' · '+(paused?'Paused':'Tap to continue · Auto-playing');const next=dlg.querySelector('.comic-next');next.hidden=!last;next.textContent=replay?'Back to Journal':story.destination;pause.hidden=last;pause.textContent=paused?'Resume':'Pause';pause.setAttribute('aria-pressed',String(paused));
 }
 pause.onclick=()=>{paused=!paused;render();schedule();};dlg.querySelector('.comic-next').onclick=()=>finish(false);dlg.querySelector('.comic-skip').onclick=()=>finish(true);dlg.addEventListener('cancel',e=>{e.preventDefault();finish(true);});dlg.showModal();render();schedule();dlg.querySelector('.comic-skip').focus();}
 

@@ -27,7 +27,8 @@
       "@capacitor/share",
       "@capacitor/splash-screen",
       "@capacitor/status-bar",
-      "@revenuecat/purchases-capacitor"
+      "@revenuecat/purchases-capacitor",
+      "@capacitor-community/admob"
     ]
   },
   "ios": {

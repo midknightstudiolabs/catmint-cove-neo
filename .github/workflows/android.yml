@@ -75,6 +75,7 @@ jobs:
           npx cap add android
           npx @capacitor/assets generate --android
           npx cap sync android
+          node scripts/configure-android-admob.mjs
 
       - name: Fix the Android splash black-flash
         run: |

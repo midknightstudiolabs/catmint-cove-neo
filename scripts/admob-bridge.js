@@ -1,8 +1,11 @@
-/* iOS-only rewarded ads. No ad request or SDK initialization on web/Android.
+/* Native iOS/Android rewarded ads. No ad request or SDK initialization on web.
  * Rewards come only from the SDK reward event, never from closing the ad. */
 (function () {
   const cap = window.Capacitor, config = window.CoveAdConfig;
-  if (!cap?.isNativePlatform?.() || cap.getPlatform() !== 'ios' || !config) return;
+  if (!cap?.isNativePlatform?.() || !['ios', 'android'].includes(cap.getPlatform()) || !config) return;
+  const android = cap.getPlatform() === 'android';
+  const units = android ? config.androidUnits : config.units;
+  const testId = android ? config.androidTestRewardedId : config.testRewardedId;
   window.CoveNative ||= {};
   if (window.CoveNative.ads) return;
   const sdk = cap.Plugins?.AdMob;
@@ -10,8 +13,8 @@
   let init, consent, preparing, initialized = false, showing = false;
   let lastError = null, stage = "idle";
   const loaded = new Map();
-  const id = p => config.testMode ? config.testRewardedId : config.units[p];
-  const ready = p => !!config.units[p] && !showing && consent?.canRequestAds === true && loaded.has(id(p)) && Date.now() - loaded.get(id(p)) < 50 * 60000;
+  const id = p => config.testMode ? testId : units[p];
+  const ready = p => !!units[p] && !showing && consent?.canRequestAds === true && loaded.has(id(p)) && Date.now() - loaded.get(id(p)) < 50 * 60000;
   async function initialize() {
     if (initialized && consent?.canRequestAds) return true;
     if (!init) init = (async () => {
@@ -30,7 +33,7 @@
     return ok;
   }
   async function prepare(p) {
-    if (!initialized || !consent?.canRequestAds || !config.units[p] || showing) return false;
+    if (!initialized || !consent?.canRequestAds || !units[p] || showing) return false;
     if (ready(p)) return true;
     if (preparing) { await preparing; if(ready(p))return true; }
     preparing = (async () => {

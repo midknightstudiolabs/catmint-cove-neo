@@ -18,7 +18,7 @@ function harness(platform='ios',allowed=true){
  vm.runInNewContext(config,ctx);vm.runInNewContext(bridge,ctx);
  return {ctx,calls,sdk,ads:ctx.window.CoveNative?.ads,emit:n=>listeners.get(n)?.()};
 }
-for(const p of ['web','android'])assert.equal(harness(p).ads,undefined);
+for(const p of ['web','unsupported'])assert.equal(harness(p).ads,undefined);
 const h=harness();vm.runInNewContext(bridge,h.ctx);assert.equal(h.ctx.window.CoveNative.ads,h.ads);
 assert.equal(await h.ads.prepare('offline2x'),false);assert.equal(h.calls.length,0);
 await Promise.all([h.ads.initialize(),h.ads.initialize()]);assert.equal(h.calls.filter(x=>x==='init').length,1);
@@ -38,6 +38,22 @@ required.sdk.requestConsentInfo=async()=>({status:'REQUIRED',isConsentFormAvaila
 required.sdk.showConsentForm=async()=>{order.push('consent');return {canRequestAds:true};};
 required.sdk.initialize=async()=>order.push('init');await required.ads.initialize();assert.deepEqual(order,['consent','init']);
 
+for (const platform of ['ios','android']) {
+ const a=harness(platform);
+ await Promise.all([a.ads.initialize(),a.ads.initialize()]);
+ assert.equal(a.calls.filter(x=>x==='init').length,1);
+ await a.ads.prepare('offline2x');
+ assert.ok(a.calls.includes(platform==='android'?'ca-app-pub-3940256099942544/5224354917':'ca-app-pub-3940256099942544/1712485313'));
+ let earned=0;const result=a.ads.show('offline2x',()=>earned++);await tick();
+ a.emit('onRewardedVideoAdReward');a.emit('onRewardedVideoAdReward');a.emit('onRewardedVideoAdDismissed');
+ assert.equal(await result,true);assert.equal(earned,1);
+ const live=harness(platform);delete live.ctx.window.CoveNative.ads;
+ live.ctx.window.CoveAdConfig={...live.ctx.window.CoveAdConfig,testMode:false};
+ vm.runInNewContext(bridge,live.ctx);const ads=live.ctx.window.CoveNative.ads;
+ await ads.initialize();await ads.prepare('offline2x');await ads.prepare('adventureBonus');
+ for(const suffix of platform==='android'?['2493178182','3614688169']:['4532136286','3107548986'])assert.ok(live.calls.includes('ca-app-pub-6342093250826583/'+suffix));
+ const blocked=harness(platform,false);await blocked.ads.initialize();assert.equal(blocked.calls.length,0);
+}
 // Exercise the actual game policy in isolation with deterministic rewards.
 const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 for(const m of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)){if(m[1].trim()&&!m[0].includes('application/ld+json'))new vm.Script(m[1]);}
@@ -68,7 +84,7 @@ for(const supporter of [false,true])for(const outcome of ['earned','skipped','fa
  assert.equal(g.G.shells,supporter||outcome==='earned'?210:110);assert.equal(done,1);
 }
 const retry=harness();let attempts=0;retry.sdk.requestConsentInfo=async()=>{if(++attempts===1)throw Error('offline');return {canRequestAds:true};};assert.equal(await retry.ads.initialize(),false);assert.equal(await retry.ads.initialize(),true);assert.equal(attempts,2);
-console.log('PASS: iOS-only bridge, consent, retry after failure, single initialization, test IDs, earned-once rewards, failed/cancelled ads preserve base, Founder double without ads, game syntax.');
+console.log('PASS: Native bridge, consent, retry after failure, single initialization, test IDs, earned-once rewards, failed/cancelled ads preserve base, Founder double without ads, game syntax.');
 
 // Exercise the real adventure return function: multiplier never duplicates discoveries.
 const adventure=html.slice(html.indexOf('function resolveAdventure(advId, onDone) {'),html.indexOf('// call an in-progress party home early'));
