@@ -139,8 +139,8 @@ jobs:
           P=ios/App/App/Info.plist
           plutil -replace UISupportedInterfaceOrientations -json '["UIInterfaceOrientationPortrait"]' "$P"
           plutil -replace 'UISupportedInterfaceOrientations~ipad' -json '["UIInterfaceOrientationPortrait","UIInterfaceOrientationPortraitUpsideDown","UIInterfaceOrientationLandscapeLeft","UIInterfaceOrientationLandscapeRight"]' "$P"
-          # stay full-screen (no Split View / Slide Over) but still auto-rotate on iPad
-          plutil -replace UIRequiresFullScreen -bool true "$P"
+          # Support iPad multitasking and dynamically resized windows.
+          plutil -remove UIRequiresFullScreen "$P" 2>/dev/null || true
           # FULL-SCREEN LAUNCH — iOS letterboxes the whole app window (grey bars
           # top + bottom) when it can't find a valid launch screen. @capacitor/assets
           # 3.x runs against Capacitor 8's newer SPM template and can leave
@@ -202,6 +202,7 @@ jobs:
             -destination "generic/platform=iOS" \
             -skipPackagePluginValidation \
             clean archive \
+            SWIFT_OPTIMIZATION_LEVEL=-O SWIFT_COMPILATION_MODE=wholemodule DEAD_CODE_STRIPPING=YES \
             CODE_SIGNING_ALLOWED=NO \
             DEVELOPMENT_TEAM="${{ secrets.IOS_TEAM_ID }}" \
             MARKETING_VERSION="${{ steps.ver.outputs.name }}" \

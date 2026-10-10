@@ -1,5 +1,5 @@
 /* One fixed window-sized page. All panel slots exist before the first reveal. */
-dialog.cove-comic{position:fixed;inset:0;box-sizing:border-box;margin:0;width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;padding:clamp(10px,2vw,26px);border:0;border-radius:0;background:#f2ebd9;color:#314b3c;box-shadow:none;overflow:hidden;animation:none!important;transition:none!important;transform:none!important}
+dialog.cove-comic{position:fixed;inset:0;box-sizing:border-box;margin:0;width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;padding:max(clamp(10px,2vw,26px),env(safe-area-inset-top,0px)) max(clamp(10px,2vw,26px),env(safe-area-inset-right,0px)) max(clamp(10px,2vw,26px),env(safe-area-inset-bottom,0px)) max(clamp(10px,2vw,26px),env(safe-area-inset-left,0px));border:0;border-radius:0;background:#f2ebd9;color:#314b3c;box-shadow:none;overflow:hidden;animation:none!important;transition:none!important;transform:none!important}
 dialog.cove-comic[open]{display:grid;grid-template-rows:76px minmax(0,1fr) 52px;gap:12px}
 .cove-comic::backdrop{background:#13241b}
 .cove-comic header{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
