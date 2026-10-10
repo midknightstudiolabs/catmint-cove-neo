@@ -8,7 +8,7 @@ const STAGES=[{name:'Driftwood Cottage',cost:0,payout:24,stayMs:180000},{name:'S
 
 const BUILDINGS={cottage:{name:'Garden cottage',extra:0,capacity:0,pay:0,time:0},lodge:{name:'Family lodge',extra:1800,capacity:2,pay:6,time:60000},villa:{name:'Terrace villa',extra:3600,capacity:1,pay:24,time:30000}};
 
-const AMENITIES=[{id:'garden',name:'Botanical garden',cost:1800,bonus:.05},{id:'pool',name:'Lagoon pool',cost:4200,bonus:.10},{id:'cafe',name:'Catmint Café',cost:6500,bonus:.15}];
+const AMENITIES=[{id:'garden',name:'Cove Garden',cost:1800,bonus:.05},{id:'pool',name:'Lagoon pool',cost:4200,bonus:.10},{id:'cafe',name:'Catmint Café',cost:6500,bonus:.15}];
 
 function bonus(g){return AMENITIES.reduce((n,a)=>n+(g.resort?.amenities?.[a.id]?a.bonus:0),0);}
 
@@ -32,7 +32,7 @@ function init(g,now=Date.now()){
 
 function stats(c){const kind=BUILDINGS[c.kind]||BUILDINGS.cottage;return {capacity:1+(c.stage>0?1:0)+kind.capacity+(c.service==='family'?1:0),payout:STAGES[c.stage].payout+c.bed*8+kind.pay+(c.service==='retreat'?15:0),stayMs:Math.max(60000,STAGES[c.stage].stayMs-c.bed*15000+kind.time+(c.service==='family'?60000:c.service==='retreat'?30000:0))};}
 
-function checkIn(c,now,g){const z=stats(c);c.guest={party:party(z.capacity),checkInAt:now,checkOutAt:now+z.stayMs,payout:Math.floor(z.payout*z.capacity*(1+bonus(g)))};c.ready=false;}
+function checkIn(c,now,g){const z=stats(c);c.guest={party:root.CoveGuestStories?.booking(g,z.capacity,now)||party(z.capacity),checkInAt:now,checkOutAt:now+z.stayMs,payout:Math.floor(z.payout*z.capacity*(1+bonus(g)))};c.ready=false;}
 
 function settle(g,now=Date.now()){
 
@@ -40,7 +40,7 @@ function settle(g,now=Date.now()){
 
  for(const c of s.cottages){if(!c.built)continue;if(!c.guest){checkIn(c,start,g);}
 
- let guest=c.guest;if(guest.checkOutAt<=now){const oldPay=Number.isFinite(guest.payout)?guest.payout:STAGES[c.stage].payout*(guest.party?.members?.length||1);paid+=oldPay;s.completedStays++;
+ let guest=c.guest;if(guest.checkOutAt<=now){const oldPay=Number.isFinite(guest.payout)?guest.payout:STAGES[c.stage].payout*(guest.party?.members?.length||1);paid+=oldPay;s.completedStays++;root.CoveGuestStories?.checkout(g,guest.party,guest.checkOutAt);
 
  const z=stats(c),end=Math.max(guest.checkOutAt,start),count=Math.floor((now-end)/z.stayMs);paid+=count*Math.floor(z.payout*z.capacity*(1+bonus(g)));s.completedStays+=count;
 
@@ -97,7 +97,7 @@ settle=function(g,now=Date.now()){
 
 };
 
-function renovate(g,i,type,cost,target,minutes,now){settle(g,now);const c=init(g,now).cottages[i];if(!c?.built||c.job||g.shells<cost)return false;const guest=c.guest;if(guest){const fraction=Math.max(0,Math.min(1,(now-guest.checkInAt)/(guest.checkOutAt-guest.checkInAt)));const credit=Math.floor((guest.payout||0)*fraction);g.shells+=credit;g.resort.revenue+=credit;g.resort.lastRenovationCredit=credit;}g.shells-=cost;c.guest=null;c.job={type,target,start:now,end:now+minutes*60000};return true;}
+function renovate(g,i,type,cost,target,minutes,now){settle(g,now);const c=init(g,now).cottages[i];if(!c?.built||c.job||g.shells<cost)return false;const guest=c.guest;if(guest){root.CoveGuestStories?.displaced(g,guest.party);const fraction=Math.max(0,Math.min(1,(now-guest.checkInAt)/(guest.checkOutAt-guest.checkInAt)));const credit=Math.floor((guest.payout||0)*fraction);g.shells+=credit;g.resort.revenue+=credit;g.resort.lastRenovationCredit=credit;}g.shells-=cost;c.guest=null;c.job={type,target,start:now,end:now+minutes*60000};return true;}
 
 upgradeCottage=function(g,i,now=Date.now()){const c=init(g,now).cottages[i],next=c&&STAGES[c.stage+1];return !!next&&renovate(g,i,'stage',next.cost,c.stage+1,c.stage?60:15,now);};
 

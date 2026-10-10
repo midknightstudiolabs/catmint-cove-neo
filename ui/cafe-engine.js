@@ -88,7 +88,7 @@
     const start=Math.max(s.cursor,now-43200000);let t=start,earned=0;
     if(s.cursor<start)s.cursor=start;
     for(let steps=0;steps<600;steps++){
-      if(s.pending){if(s.pending.at>now)break;const p=s.pending;s.pending=null;g.shells+=p.price;earned+=p.price;s.served++;s.revenue+=p.price;s.cost+=p.cost;for(const id of (p.items||[p.id]))s.sales[id]=(s.sales[id]||0)+1;const response=feedback(s,p);s.lastCompleted={id:p.id,items:p.items||[p.id],at:p.at,price:p.price,response};s.customerReport||={total:0,happy:0,delighted:0};s.customerReport.total++;if(response.rating>=4)s.customerReport.happy++;if(response.rating===5)s.customerReport.delighted++;s.feedbackLog||=[];s.feedbackLog.unshift({id:p.id,at:p.at,price:p.price,...response});s.feedbackLog.length=Math.min(10,s.feedbackLog.length);t=Math.max(t,p.at);}
+      if(s.pending){if(s.pending.at>now)break;const p=s.pending;s.pending=null;g.shells+=p.price;earned+=p.price;s.served++;s.revenue+=p.price;s.cost+=p.cost;for(const id of (p.items||[p.id]))s.sales[id]=(s.sales[id]||0)+1;const response=feedback(s,p);s.lastCompleted={id:p.id,items:p.items||[p.id],at:p.at,price:p.price,response};s.customerReport||={total:0,happy:0,delighted:0};s.customerReport.total++;if(response.rating>=4)s.customerReport.happy++;if(response.rating===5)s.customerReport.delighted++;s.feedbackLog||=[];s.feedbackLog.unshift({id:p.id,at:p.at,price:p.price,...response});s.feedbackLog.length=Math.min(10,s.feedbackLog.length);root.CoveGuestStories?.served(g,p.items||[p.id],p.at);t=Math.max(t,p.at);}
       if(!s.open){s.cursor=now;break;}
       const options=available(s,g.homestead.stock);if(!options.length){s.open=false;s.closedReason='ingredients';s.cursor=now;break;}
       const due=s.cursor+interval(s,s.cursor);if(due>now)break;

@@ -7,7 +7,7 @@ for(const scenario of ['success','empty','failure','unavailable','timeout']) {
   const status={isConnected:true,scrollIntoView(){}};
   let reconciled=null;
   const context={document:{querySelector:()=>({querySelector:()=>status}),querySelectorAll:()=>[]},
-    toast(){},nativeIap:()=>scenario!=='unavailable',
+    toast(){},blessingActive:()=>false,nativeIap:()=>scenario!=='unavailable',
     window:{CoveNative:{iap:{restore:()=>scenario==='failure'?Promise.reject(new Error('offline')):scenario==='timeout'?new Promise(()=>{}):Promise.resolve(scenario==='empty'?[]:['welcome_pack'])}}},
     setTimeout:fn=>setTimeout(fn,5),clearTimeout,
     reconcileEntitlements:ids=>{reconciled=ids;},applyEntitlements(){},saveIap(){},save(){},syncHud(){},IAP_PRODUCTS:{welcome_pack:{}}};
