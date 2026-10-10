@@ -259,6 +259,7 @@ jobs:
             --apiKey "${{ secrets.ASC_KEY_ID }}" --apiIssuer "${{ secrets.ASC_ISSUER_ID }}"
 
       - name: Keep the .ipa as an artifact
+        continue-on-error: true
         if: ${{ always() && steps.keys.outputs.have == 'true' }}
         uses: actions/upload-artifact@v4
         with:

@@ -2492,7 +2492,7 @@ const SAVE_VERSIONS = [9];
 // a cache key that changes on every deploy (the file's Last-Modified moves) —
 // appended to the runtime asset fetches so audio never loads stale after an update
 const BUILD = String(Date.parse(document.lastModified) || 0) + ".v9";
-const APP_VERSION = "3.4.10";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
+const APP_VERSION = "3.4.11";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
 // only bust on the hosted web build — the native app bundles assets locally
 const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ? "&" : "?") + "v=" + BUILD : u;
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
