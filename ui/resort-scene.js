@@ -16,12 +16,18 @@ function scene(c,{view,cottages,selected,amenities={},businesses={},t,a}){
   box(138,95,214,55,'#759f9a',5);box(145,101,200,43,'#b4dde1');box(242,101,5,43,'#f5ecd6');
   box(575,95,230,55,'#759f9a',5);box(582,101,216,43,'#b4dde1');box(687,101,5,43,'#f5ecd6');
   box(455,165,10,270,'#e5d8b8');box(455,495,10,50,'#e5d8b8');oval(300,367,130,95,'#d6dfbf');oval(300,367,112,80,'#bacba5');
-  for(let j=0;j<z.capacity;j++)bed(150+j*72,247,cot.bed);
+  const beds=Array.from({length:z.capacity},(_,j)=>({x:150+(j%3)*92,y:235+Math.floor(j/3)*110}));
+  beds.forEach(p=>bed(p.x,p.y,cot.bed));
   box(585,232,190,64,'#6d9480',15);box(593,238,81,50,'#98b09a',10);box(683,238,81,50,'#98b09a',10);
   oval(678,377,76,46,'#8d7254');oval(678,371,76,46,'#ead4a6');oval(660,365,12,8,'#fff5dc');oval(706,377,12,8,'#fff5dc');
   tree(805,475,.8);box(140,465,100,40,'#93795c',5);box(147,470,86,30,'#d9c399',4);if(cot.stage>0){oval(390,192,25,25,'#e7c270');text('☀',390,200,24);}
   text('BEDROOM',285,205,13,'#66543f');text('A PLACE TO DO NOTHING',680,205,13,'#66543f');
-  if(cot.guest)cot.guest.party.members.forEach((m,i)=>guest(m,177+i*72,306,.76,'sleeping'));
+  if(cot.guest){const sleeping=root.CoveResortLandscape.resting(cot,Date.now());
+   if(sleeping)cot.guest.party.members.forEach((m,i)=>{const p=beds[i];if(!p)return;guest(m,p.x+29,p.y+57,.62,'sleeping');text('z z z',p.x+30,p.y+18-Math.sin(t/900+i)*3,12);});
+   const settling=root.CoveResortLandscape.settling(cot,Date.now());
+   if(!sleeping&&settling)cot.guest.party.members.forEach((m,i)=>{const seats=[[620,282],[724,282],[561,369],[788,369],[677,424]];const p=seats[i];if(p)guest(m,p[0],p[1],.55,'loafing');});
+   text(sleeping?'Guests are resting · sweet dreams':settling?'Settling in · a little time to unwind':'Guests are out enjoying the resort',680,466,18);
+  }else text('Ready for the next guests',680,466,18);
   text(root.CoveResortEngine.STAGES[cot.stage].name,480,605,24);return;
  }
 

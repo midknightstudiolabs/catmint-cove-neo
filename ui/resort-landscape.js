@@ -40,6 +40,7 @@ function renovationCrew(c,a,x,y,t,seed){
 }
 // Visual room cues follow real bookings; no saved mood or reward changes.
 const roomCues=new WeakMap();
+function settling(cot,now){const g=cot.guest;return !!g&&now<g.checkInAt+(g.checkOutAt-g.checkInAt)*.12;}
 function resting(cot,now){const g=cot.guest;return !!g&&now>=g.checkInAt+(g.checkOutAt-g.checkInAt)*.55;}
 function drawRoomCues(c,cottages,a,t){const now=Date.now();
  cottages.forEach((cot,i)=>{let state=roomCues.get(cot);if(!state){state={guest:cot.guest,exit:null};roomCues.set(cot,state);}
@@ -66,12 +67,22 @@ const p=slots[selected];if(p){c.save();c.strokeStyle='#fff1b6';c.lineWidth=2;c.s
 // Activities use booked guests; no extra cats are added to the player's roster.
 const visitors=cottages.flatMap((cot,plot)=>!cot.built||cot.job?[]:(cot.guest?.party?.members||[]).map(m=>({cot,plot,m})));
 for(let i=0;i<visitors.length;i++){
-const {cot,plot,m}=visitors[i];if(!cot.built||cot.job||!cot.guest?.party?.members?.length||resting(cot,Date.now()))continue;
+const {cot,plot,m}=visitors[i];if(!cot.built||cot.job||!cot.guest?.party?.members?.length||resting(cot,Date.now())||settling(cot,Date.now()))continue;
 const phase=(t/26000+i*.173)%1,forward=phase<.5,u=forward?phase*2:(1-phase)*2;
-if(i<18&&i%6===5&&businesses.kayak?.level&&!businesses.kayak.job){const x=871+Math.sin(t/11000+i)*18,y=463+u*61;c.save();c.fillStyle='#efd49d';c.beginPath();c.ellipse(x,y,7,19,.12,0,7);c.fill();a.cat?.(c,{...m,pose:'loafing'},x,y+3,.28,t);c.strokeStyle='#755f41';c.lineWidth=2;c.beginPath();c.moveTo(x-12,y-7+Math.sin(t/550)*3);c.lineTo(x+12,y+7);c.stroke();c.restore();continue;}
+// Four distinct beachfront spots, away from the jetty, loungers and cottage lots.
+if(i<24&&i%6===0){const k=Math.floor(i/6),x=205+k*61,y=585;
+ c.save();c.fillStyle='#ead4a2';c.beginPath();c.ellipse(x,y+2,16,5,0,0,7);c.fill();
+ const action=k%3;
+ if(action===0){c.fillStyle='#c6aa75';c.fillRect(x+8,y-8,12,10);c.fillRect(x+10,y-13,3,6);c.fillRect(x+16,y-13,3,6);a.cat?.(c,{...m,pose:'loafing'},x-8,y,.32,t);}
+ else if(action===1){c.fillStyle='#cf9276';c.fillRect(x-13,y-7,26,12);a.cat?.(c,{...m,pose:'sleeping'},x,y,.32,t);}
+ else {const bx=x+Math.sin(t/1100)*8;c.fillStyle='#f8ead0';c.beginPath();c.arc(bx,y-4,4,0,7);c.fill();a.cat?.(c,{...m,pose:'exploring',face:Math.cos(t/1100)>0?1:-1},x-13+Math.sin(t/1100)*7,y,.32,t);}
+ c.restore();continue;
+}
+
+if(i<18&&i%6===5&&businesses.kayak?.level&&!businesses.kayak.job){const x=884+Math.floor(i/6)*22+Math.sin(t/11000+i)*7,y=448+u*75;c.save();c.fillStyle='#efd49d';c.beginPath();c.ellipse(x,y,7,19,.12,0,7);c.fill();a.cat?.(c,{...m,pose:'loafing'},x,y+3,.28,t);c.strokeStyle='#755f41';c.lineWidth=2;c.beginPath();c.moveTo(x-12,y-7+Math.sin(t/550)*3);c.lineTo(x+12,y+7);c.stroke();c.restore();continue;}
 if(i<18&&i%6===4){const shop=root.CoveResortEngine.BUSINESSES.filter(b=>b.id!=='kayak'&&businesses[b.id]?.level&&!businesses[b.id].job)[Math.floor(i/6)%3];if(shop){a.cat?.(c,{...m,pose:'loafing'},shop.x+12,shop.y+24,.32,t);continue;}}
 
-if(i<16&&i%4===1&&amenities.pool){const x=523+(Math.floor(i/4)%2)*25,y=302+u*45;
+if(i<16&&i%4===1&&amenities.pool){const x=523+(Math.floor(i/4)%2)*25,y=299+Math.floor(i/8)*27+u*12;
 c.save();c.beginPath();c.roundRect(506,286,64,80,16);c.clip();
 c.strokeStyle='#e1f8e9aa';c.lineWidth=.9;for(let k=0;k<3;k++){c.beginPath();c.ellipse(x,y+3+k*3,6+k*3+Math.sin(t/450+i)*.8,1.8+k*.5,0,0,Math.PI*2);c.stroke();}
 c.save();c.beginPath();c.rect(506,286,64,Math.max(0,y+1-286));c.clip();a.cat?.(c,{...m,pose:'loafing',face:forward?1:-1},x,y+11+Math.sin(t/550+i)*.6,.36,t);c.restore();c.fillStyle='#bde8da66';c.fillRect(x-5,y,10,1);c.restore();continue;}
@@ -105,8 +116,9 @@ for(let i=0;i<nodes.length;i++)for(const j of links[i])if(j>i){const a=nodes[i],
 function roadDistance(x,y){let closest=Infinity;for(let i=0;i<nodes.length;i++)for(const j of links[i])if(j>i){const a=nodes[i],b=nodes[j],dx=b.x-a.x,dy=b.y-a.y,u=Math.max(0,Math.min(1,((x-a.x)*dx+(y-a.y)*dy)/(dx*dx+dy*dy)));closest=Math.min(closest,Math.hypot(x-a.x-u*dx,y-a.y-u*dy));}return closest;}
 // Short cottage entry paths, tucked under the front verandas.
 positions.forEach(([x,y],i)=>{if(!cottages[i]?.built)return;const door={x:x+12,y:y+29},n=nodes.filter(p=>p.y>=door.y).sort((a,b)=>Math.hypot(a.x-door.x,a.y-door.y)-Math.hypot(b.x-door.x,b.y-door.y))[0];if(n&&Math.hypot(n.x-door.x,n.y-door.y)<85){path('M '+door.x+' '+door.y+' L '+n.x+' '+n.y,null,'#d8c49e',6);}});
-function bush(x,y,s=1){oval(x+3,y+3,15*s,8*s,'#3a624c22');for(let k=0;k<7;k++)oval(x+Math.cos(k)*9*s,y+Math.sin(k)*4*s,7*s,5*s,['#5f885c','#749960','#8da66b'][k%3]);}
-function palm(x,y,s=1,flip=1){c.save();c.translate(x,y);c.scale(s*flip,s);oval(12,8,31,8,'#325e4530');path('M 0 0 Q 11 -23 3 -56',null,'#816d4c',6);path('M -1 0 Q 9 -25 1 -56',null,'#c0a477',2);for(let k=0;k<7;k++){const a=k*Math.PI*2/7,dx=Math.cos(a)*36,dy=Math.sin(a)*15;path('M 3 -55 Q '+(dx*.65)+' '+(-75+dy)+' '+dx+' '+(-50+dy)+' Q '+(dx*.4)+' '+(-61+dy)+' 3 -55',['#3f7356','#53855b','#78a168'][k%3]);line(3,-55,dx,-50+dy,'#b1be7740',.7);}oval(3,-52,3,4,'#8d734c');c.restore();}
+function foliageClear(x,y,w,h){return !slots.some(p=>x+w>p.x&&x-w<p.x+p.w&&y>p.y&&y-h<p.y+p.h)&&roadDistance(x,y)>14;}
+function bush(x,y,s=1){if(!foliageClear(x,y,18*s,8*s))return;oval(x+3,y+3,15*s,8*s,'#3a624c22');for(let k=0;k<7;k++)oval(x+Math.cos(k)*9*s,y+Math.sin(k)*4*s,7*s,5*s,['#5f885c','#749960','#8da66b'][k%3]);}
+function palm(x,y,s=1,flip=1){if(!foliageClear(x,y,36*s,80*s))return;c.save();c.translate(x,y);c.scale(s*flip,s);oval(12,8,31,8,'#325e4530');path('M 0 0 Q 11 -23 3 -56',null,'#816d4c',6);path('M -1 0 Q 9 -25 1 -56',null,'#c0a477',2);for(let k=0;k<7;k++){const a=k*Math.PI*2/7,dx=Math.cos(a)*36,dy=Math.sin(a)*15;path('M 3 -55 Q '+(dx*.65)+' '+(-75+dy)+' '+dx+' '+(-50+dy)+' Q '+(dx*.4)+' '+(-61+dy)+' 3 -55',['#3f7356','#53855b','#78a168'][k%3]);line(3,-55,dx,-50+dy,'#b1be7740',.7);}oval(3,-52,3,4,'#8d734c');c.restore();}
 function rock(x,y,s=1){path('M '+(x-9*s)+' '+y+' l '+3*s+' '+(-7*s)+' l '+10*s+' '+(-2*s)+' l '+7*s+' '+8*s+' l '+(-5*s)+' '+5*s+' Z','#919f8a');line(x-4*s,y-6*s,x+5*s,y-7*s,'#d4d4b6',2);}
 function deck(x,y,w,h){box(x+2,y+4,w,h,'#655d3c28',2);box(x,y,w,h,'#ae8d61',2);for(let yy=y+3;yy<y+h;yy+=4)line(x+1,yy,x+w-1,yy,'#d8bc8b',.7);}
 function lounger(x,y){box(x+2,y+3,11,22,'#6b6d4822',2);box(x,y,10,22,'#f7eccc',2);box(x+1,y+2,8,7,'#94af9e',1);line(x+2,y+12,x+8,y+12,'#d4c9a9');}
@@ -169,5 +181,5 @@ for(let k=0;k<4;k++){let x=279+k*91;if(x>420&&x<529)continue;lounger(x,542);loun
 label('PALM GROVE',226,76);label('LAGOON WALK',693,119);label('CORAL BEACH',666,550);
 function label(s,x,y,quiet=false){if(hideLabels)return;c.font='600 '+(s.length<3?8:8.5)+'px sans-serif';c.textAlign='center';const w=c.measureText(s).width+13;box(x-w/2,y-10,w,15,quiet?'#e9e4c78a':'#fcf4dace',5);c.fillStyle=quiet?'#76866b':'#4b6557';c.fillText(s,x,y);}
 }
-landscape.paintSnapshot=paint;landscape.slots=slots;root.CoveResortLandscape=landscape;
+landscape.settling=settling;landscape.resting=resting;landscape.paintSnapshot=paint;landscape.slots=slots;root.CoveResortLandscape=landscape;
 })(globalThis);
