@@ -24,6 +24,29 @@ if(w.pause>0){w.pause-=dt;return {...w,moving:false};}
 if(!w.route.length){const options=destinations.filter(n=>n!==w.at&&n!==w.previous);const to=options[Math.floor(random()*options.length)];w.previous=w.at;w.route=route(w.at,to);w.speed=12+random()*7;}
 let distance=dt*w.speed;while(w.route.length&&distance>0){const n=w.route[0],p=nodes[n],dx=p.x-w.x,dy=p.y-w.y,d=Math.hypot(dx,dy);if(Math.abs(dx)>.1)w.face=dx<0?-1:1;if(d<=distance){w.x=p.x;w.y=p.y;w.at=n;w.route.shift();distance-=d;if(!w.route.length)w.pause=7+random()*17;}else{w.x+=dx/d*distance;w.y+=dy/d*distance;distance=0;}}
 return {...w,moving:w.pause<=0};}
+// A booked guest follows one continuous outing, then returns before sleeping.
+const outings=new WeakMap();
+function nearest(p){let best=0;nodes.forEach((n,i)=>{if(Math.hypot(n.x-p.x,n.y-p.y)<Math.hypot(nodes[best].x-p.x,nodes[best].y-p.y))best=i;});return best;}
+function outing(cot,plot,m,i,A,B,now){
+ let plan=outings.get(m);
+ if(!plan||plan.booking!==cot.guest){
+  let target={x:170+(i%8)*25,y:542+Math.floor(i/8)*16},kind='beach';
+  if(i<18&&i%6===5&&B.kayak?.level&&!B.kayak.job){target={x:842,y:514};kind='kayak';}
+  else if(i<16&&i%4===1&&A.pool){target={x:523+(Math.floor(i/4)%2)*25,y:306+Math.floor(i/8)*27};kind='pool';}
+  else if(i<16&&i%4===3&&A.cafe){target={x:502+Math.floor(i/4)*23,y:213};kind='cafe';}
+  else if(i>=16){const n=destinations[(plot+Math.abs(m.markSeed||0))%destinations.length];target={x:nodes[n].x,y:nodes[n].y};kind='stroll';}
+  const home={x:positions[plot][0]+12,y:positions[plot][1]+29},from=nearest(home),to=nearest(target);
+  const points=[home,nodes[from],...route(from,to).map(n=>nodes[n]),target];
+  const lengths=points.slice(1).map((p,j)=>Math.hypot(p.x-points[j].x,p.y-points[j].y));
+  plan={booking:cot.guest,kind,target,points,lengths,total:lengths.reduce((a,b)=>a+b,0)};outings.set(m,plan);
+ }
+ const f=(now-cot.guest.checkInAt)/(cot.guest.checkOutAt-cot.guest.checkInAt);
+ const active=f>=.28&&f<.43,back=f>=.43;
+ let fraction=active?1:back?1-(f-.43)/.12:(f-.12)/.16;
+ let distance=Math.max(0,Math.min(1,fraction))*plan.total,point=plan.points[0],face=1;
+ for(let j=0;j<plan.lengths.length;j++){const length=plan.lengths[j],a=plan.points[j],b=plan.points[j+1];if(distance<=length){const u=length?distance/length:0;point={x:a.x+(b.x-a.x)*u,y:a.y+(b.y-a.y)*u};face=(b.x<a.x?-1:1)*(back?-1:1);break;}distance-=length;point=b;}
+ return {...point,face,active,kind:plan.kind,progress:Math.max(0,Math.min(1,(f-.28)/.15)),label:back?'Heading back to the room':active?({beach:'Enjoying the beach',pool:'Swimming',kayak:'Kayaking',cafe:'Taking a café break',stroll:'Watching the sea'}[plan.kind]):'Walking to '+({beach:'the beach',pool:'the pool',kayak:'the jetty',cafe:'the café',stroll:'the coast'}[plan.kind])};
+}
 // Decorative crew uses existing cat art; never changes guests, saves or job timing.
 function renovationCrew(c,a,x,y,t,seed){
  c.save();
@@ -68,27 +91,18 @@ const p=slots[selected];if(p){c.save();c.strokeStyle='#fff1b6';c.lineWidth=2;c.s
 const visitors=cottages.flatMap((cot,plot)=>!cot.built||cot.job?[]:(cot.guest?.party?.members||[]).map(m=>({cot,plot,m})));
 for(let i=0;i<visitors.length;i++){
 const {cot,plot,m}=visitors[i];if(!cot.built||cot.job||!cot.guest?.party?.members?.length||resting(cot,Date.now())||settling(cot,Date.now()))continue;
-const phase=(t/26000+i*.173)%1,forward=phase<.5,u=forward?phase*2:(1-phase)*2;
-// Four distinct beachfront spots, away from the jetty, loungers and cottage lots.
-if(i<24&&i%6===0){const k=Math.floor(i/6),x=205+k*61,y=585;
- c.save();c.fillStyle='#ead4a2';c.beginPath();c.ellipse(x,y+2,16,5,0,0,7);c.fill();
- const action=k%3;
- if(action===0){c.fillStyle='#c6aa75';c.fillRect(x+8,y-8,12,10);c.fillRect(x+10,y-13,3,6);c.fillRect(x+16,y-13,3,6);a.cat?.(c,{...m,pose:'loafing'},x-8,y,.32,t);}
- else if(action===1){c.fillStyle='#cf9276';c.fillRect(x-13,y-7,26,12);a.cat?.(c,{...m,pose:'sleeping'},x,y,.32,t);}
- else {const bx=x+Math.sin(t/1100)*8;c.fillStyle='#f8ead0';c.beginPath();c.arc(bx,y-4,4,0,7);c.fill();a.cat?.(c,{...m,pose:'exploring',face:Math.cos(t/1100)>0?1:-1},x-13+Math.sin(t/1100)*7,y,.32,t);}
- c.restore();continue;
+const q=outing(cot,plot,m,i,amenities,businesses,Date.now());
+if(!q.active){a.cat?.(c,{...m,pose:'exploring',face:q.face},q.x,q.y,.34,t);continue;}
+if(q.kind==='kayak'){
+ const x=q.x+Math.sin(q.progress*Math.PI)*48,y=q.y+Math.sin(q.progress*Math.PI*2)*22;
+ c.save();c.fillStyle='#efd49d';c.beginPath();c.ellipse(x,y,7,19,.12,0,7);c.fill();a.cat?.(c,{...m,pose:'loafing'},x,y,.28,t);c.strokeStyle='#755f41';c.lineWidth=2;c.beginPath();c.moveTo(x-12,y-7+Math.sin(t/550)*3);c.lineTo(x+12,y+7);c.stroke();c.restore();
+}else if(q.kind==='pool'){
+ c.save();c.beginPath();c.roundRect(506,286,64,80,16);c.clip();a.cat?.(c,{...m,pose:'loafing'},q.x,q.y,.32,t);c.strokeStyle='#e1f8e9aa';c.beginPath();c.ellipse(q.x,q.y,10,3,0,0,7);c.stroke();c.restore();
+}else{
+ if(q.kind==='beach'){if(i%3===0){c.fillStyle='#c6aa75';c.fillRect(q.x+8,q.y-8,12,10);c.fillRect(q.x+10,q.y-12,3,5);}else if(i%3===1){c.fillStyle='#cf9276';c.fillRect(q.x-10,q.y-8,20,12);}else{c.fillStyle='#f8ead0';c.beginPath();c.arc(q.x+10+Math.sin(t/800)*3,q.y-3,3,0,7);c.fill();}}
+ a.cat?.(c,{...m,pose:q.kind==='beach'&&i%2?'sleeping':'loafing'},q.x,q.y,.32,t);
 }
 
-if(i<18&&i%6===5&&businesses.kayak?.level&&!businesses.kayak.job){const x=884+Math.floor(i/6)*22+Math.sin(t/11000+i)*7,y=448+u*75;c.save();c.fillStyle='#efd49d';c.beginPath();c.ellipse(x,y,7,19,.12,0,7);c.fill();a.cat?.(c,{...m,pose:'loafing'},x,y+3,.28,t);c.strokeStyle='#755f41';c.lineWidth=2;c.beginPath();c.moveTo(x-12,y-7+Math.sin(t/550)*3);c.lineTo(x+12,y+7);c.stroke();c.restore();continue;}
-if(i<18&&i%6===4){const shop=root.CoveResortEngine.BUSINESSES.filter(b=>b.id!=='kayak'&&businesses[b.id]?.level&&!businesses[b.id].job)[Math.floor(i/6)%3];if(shop){a.cat?.(c,{...m,pose:'loafing'},shop.x+12,shop.y+24,.32,t);continue;}}
-
-if(i<16&&i%4===1&&amenities.pool){const x=523+(Math.floor(i/4)%2)*25,y=299+Math.floor(i/8)*27+u*12;
-c.save();c.beginPath();c.roundRect(506,286,64,80,16);c.clip();
-c.strokeStyle='#e1f8e9aa';c.lineWidth=.9;for(let k=0;k<3;k++){c.beginPath();c.ellipse(x,y+3+k*3,6+k*3+Math.sin(t/450+i)*.8,1.8+k*.5,0,0,Math.PI*2);c.stroke();}
-c.save();c.beginPath();c.rect(506,286,64,Math.max(0,y+1-286));c.clip();a.cat?.(c,{...m,pose:'loafing',face:forward?1:-1},x,y+11+Math.sin(t/550+i)*.6,.36,t);c.restore();c.fillStyle='#bde8da66';c.fillRect(x-5,y,10,1);c.restore();continue;}
-if(i<16&&i%4===2&&amenities.garden){a.cat?.(c,{...m,pose:'sleeping'},389,379+Math.floor(i/4)*10,.32,t);continue;}
-if(i<16&&i%4===3&&amenities.cafe){a.cat?.(c,{...m,pose:'loafing'},502+(Math.floor(i/4)%4)*23,213,.32,t);continue;}
-const q=wander(m,t);a.cat?.(c,{...m,pose:q.moving?'exploring':'loafing',trotting:false,face:q.face},q.x,q.y+2,.34,t);
 }
 
 drawRoomCues(c,cottages,a,t);
@@ -181,5 +195,5 @@ for(let k=0;k<4;k++){let x=279+k*91;if(x>420&&x<529)continue;lounger(x,542);loun
 label('PALM GROVE',226,76);label('LAGOON WALK',693,119);label('CORAL BEACH',666,550);
 function label(s,x,y,quiet=false){if(hideLabels)return;c.font='600 '+(s.length<3?8:8.5)+'px sans-serif';c.textAlign='center';const w=c.measureText(s).width+13;box(x-w/2,y-10,w,15,quiet?'#e9e4c78a':'#fcf4dace',5);c.fillStyle=quiet?'#76866b':'#4b6557';c.fillText(s,x,y);}
 }
-landscape.settling=settling;landscape.resting=resting;landscape.paintSnapshot=paint;landscape.slots=slots;root.CoveResortLandscape=landscape;
+landscape.outing=outing;landscape.settling=settling;landscape.resting=resting;landscape.paintSnapshot=paint;landscape.slots=slots;root.CoveResortLandscape=landscape;
 })(globalThis);
