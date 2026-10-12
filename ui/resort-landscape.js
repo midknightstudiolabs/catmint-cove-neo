@@ -75,7 +75,8 @@ function drawRoomCues(c,cottages,a,t){const now=Date.now();
 }
 function landscape(c,{cottages,selected,amenities={},businesses={},t,a}){
 const stateKey=JSON.stringify([cottages.map(x=>[x.built,x.stage,x.bed,x.kind,x.style]),amenities,Object.entries(businesses).map(([id,b])=>[id,b.level,b.job?.end])]);
-if(!cache||key!==stateKey){cache=document.createElement('canvas');cache.width=1920;cache.height=1280;const g=cache.getContext('2d');g.scale(2,2);paint(g,cottages,amenities,businesses);key=stateKey;}
+const transform=c.getTransform?.(),density=Math.min(3,Math.max(2,Math.ceil(Math.max(Math.abs(transform?.a||2),Math.abs(transform?.d||2)))));
+if(!cache||key!==stateKey||cache.width!==960*density){cache=document.createElement('canvas');cache.width=960*density;cache.height=640*density;const g=cache.getContext('2d');g.scale(density,density);paint(g,cottages,amenities,businesses);key=stateKey;}
 c.drawImage(cache,0,0,960,640);
 a.cat?.(c,{coatKey:'midknight',mascot:true,markSeed:777,age:'adult',pose:'loafing'},477,554,.4,t);
 // Jobs occupy fixed lots; only the progress fill changes each frame.
