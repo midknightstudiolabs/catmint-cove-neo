@@ -1,8 +1,8 @@
 {
   "name": "catmint-cove-neo",
-  "version": "3.4.13",
+  "version": "3.4.14",
   "private": true,
-  "description": "Catmint Cove — a cozy-idle cat sanctuary. Web game + Capacitor wrapper for the app stores. This repo (Neo) is the current build source.",
+  "description": "Catmint Cove \u00e2\u20ac\u201d a cozy-idle cat sanctuary. Web game + Capacitor wrapper for the app stores. This repo (Neo) is the current build source.",
   "type": "module",
   "scripts": {
     "postinstall": "node scripts/patch-admob-consent.mjs",

@@ -1,6 +1,6 @@
-// Production IDs are recorded here; TEST_MODE must stay true until release approval.
+// Live rewarded ads enabled for the user-approved 3.4.14 release.
 window.CoveAdConfig = Object.freeze({
-  testMode: true,
+  testMode: false,
   androidAppId: 'ca-app-pub-6342093250826583~7344023493',
   androidTestRewardedId: 'ca-app-pub-3940256099942544/5224354917',
   androidUnits: Object.freeze({

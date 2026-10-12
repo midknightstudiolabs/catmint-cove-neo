@@ -7,3 +7,11 @@ for(const [elapsed,expected] of [[1000,'loafing'],[30000,null],[80000,'sleeping'
 for(const [i,r] of g.resort.cottages.entries()){Object.assign(r,{built:true,stage:2,bed:2,kind:'lodge',guest:{party:{members:members.map((m,j)=>({...m,markSeed:100+i*5+j}))},checkInAt:now-30000,checkOutAt:now+70000}});}
 const original=JSON.stringify(g);for(const t of [0,1000,13000,26000,60000]){calls=[];c.CoveResortLandscape(ctx,{cottages:g.resort.cottages,selected:0,amenities:{pool:true,cafe:true,garden:true},businesses:{kayak:{level:3}},t,a});const booked=calls.filter(x=>x.m.markSeed>=100&&x.m.markSeed<180);assert.equal(booked.length,80);assert.equal(new Set(booked.map(x=>x.m.markSeed)).size,80);assert(booked.every(x=>x.x>=0&&x.x<=960&&x.y>=0&&x.y<=640));}
 assert.equal(JSON.stringify(g),original);console.log('PASS five-bed room placement, arrival/away/sleep states, 80 unique guests, bounded activity positions, finite drawing coordinates and unchanged saves');
+// Journey continuity: no snap from walking to activity or activity to return.
+const L=c.CoveResortLandscape,r=g.resort.cottages[0],m=r.guest.party.members[0],start=r.guest.checkInAt,duration=r.guest.checkOutAt-start;
+const sample=f=>L.outing(r,0,m,0,{}, {},start+f*duration);
+for(const boundary of [.28,.43]){const a=sample(boundary-.000001),b=sample(boundary+.000001);assert(Math.hypot(a.x-b.x,a.y-b.y)<.1);}
+const home=sample(.12),back=sample(.55);assert(Math.hypot(home.x-back.x,home.y-back.y)<.01);
+assert(!sample(.2).active);assert(sample(.35).active);assert(!sample(.5).active);assert(sample(.5).label.includes('back'));
+const saved=JSON.stringify(g);for(let f=.12;f<.55;f+=.001){const q=sample(f);assert(Number.isFinite(q.x)&&Number.isFinite(q.y));}assert.equal(JSON.stringify(g),saved);
+console.log('PASS continuous outward/activity/return transitions, home endpoint and read-only guest itinerary');

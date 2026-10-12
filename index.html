@@ -2469,7 +2469,7 @@ details.garden-list{margin:12px 0}details.garden-list>summary{cursor:pointer;fon
 
 <script src="ui/product-analytics.js?v=1"></script>
 <script src="ui/memory-rewards.js?v=1"></script><script src="ui/endless-rewards.js?v=1"></script><link rel="stylesheet" href="ui/little-matches.css?v=14"><script src="ui/little-matches.js?v=18"></script>
-<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=14"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><link rel="stylesheet" href="ui/guest-stories.css?v=1"><script src="ui/guest-stories.js?v=1"></script><script src="ui/guest-stories-view.js?v=1"></script><script src="ui/cafe-engine.js?v=29"></script><script src="ui/cafe-scene.js?v=37"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=14"></script><script src="ui/resort-landscape.js?v=19"></script><script src="ui/resort-scene.js?v=8"></script><script src="ui/resort-view.js?v=14"></script>
+<link rel="stylesheet" href="ui/garden-play.css?v=7"><link rel="stylesheet" href="ui/cafe-kiosk.css?v=52"><link rel="stylesheet" href="ui/mobile-polish.css?v=1"><link rel="stylesheet" href="ui/resort-view.css?v=14"><script src="ui/garden-crops.js?v=1"></script><script src="ui/garden-world.js?v=5"></script><link rel="stylesheet" href="ui/guest-stories.css?v=1"><script src="ui/guest-stories.js?v=1"></script><script src="ui/guest-stories-view.js?v=1"></script><script src="ui/cafe-engine.js?v=29"></script><script src="ui/cafe-scene.js?v=37"></script><script src="ui/cafe-kiosk.js?v=72"></script><script src="ui/resort-engine.js?v=14"></script><script src="ui/resort-landscape.js?v=21"></script><script src="ui/resort-scene.js?v=8"></script><script src="ui/resort-view.js?v=16"></script>
 <link rel="stylesheet" href="ui/cove-stories.css?v=7"><script src="ui/cove-stories.js?v=8"></script><script src="ui/halloween.js?v=3"></script><script src="ui/wishing-well.js?v=1"></script>
 <script>
 (() => {
@@ -2492,7 +2492,7 @@ const SAVE_VERSIONS = [9];
 // a cache key that changes on every deploy (the file's Last-Modified moves) —
 // appended to the runtime asset fetches so audio never loads stale after an update
 const BUILD = String(Date.parse(document.lastModified) || 0) + ".v9";
-const APP_VERSION = "3.4.13";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
+const APP_VERSION = "3.4.14";   // the marketing version — keep in step with the store builds (ios.yml / android.yml) and package.json
 // only bust on the hosted web build — the native app bundles assets locally
 const bust = (u) => /^https?:$/.test(location.protocol) ? u + (u.includes("?") ? "&" : "?") + "v=" + BUILD : u;
 // developer build: served at /dev/ or with ?dev — unlocks the dev panel + R-key
@@ -2502,12 +2502,12 @@ const DEV_BUILD = /(^|\/)dev\/?$/.test(location.pathname) || /(^|[?&])dev\b/.tes
 let ADS_ENABLED = !!window.CoveNative?.ads?.enabled;
 const DAY_MS = 86400000;
 const today = () => Math.floor(Date.now() / DAY_MS);
-let DPR = Math.min(window.devicePixelRatio || 1, 2);   // re-read on every resize (iPad zoom / display change)
+let DPR = Math.min(window.devicePixelRatio || 1, 3);   // re-read on every resize (iPad zoom / display change)
 // adaptive resolution: dropped when the device can't hold 60fps even with the
 // per-cat lite detail (see _perfLite) — a struggling integrated GPU is usually
 // fill-rate bound on the full-screen sky/ground/vignette paints, which lite
 // mode doesn't touch. Restored once the device recovers. See frame().
-let _dprCap = 2;
+let _dprCap = 3;
 
 // last-resort net: log anything that slips past a local try/catch (event
 // handlers, timers, async). The render loop has its own catch in frame().
@@ -19201,7 +19201,7 @@ function frameBody(now) {
       // that machine's slowdown is CPU-bound, not fill-rate-bound. Left in
       // (behind a high bar) for a genuinely fill-bound device; __cove.perfLite()
       // still forces it for testing.
-      const wantCap = _perfTier >= 2 ? 1 : 2;
+      const wantCap = _perfTier >= 2 ? 1.5 : 3;
       if (_dprCap !== wantCap) { _dprCap = wantCap; resize(); }
     }
   }
@@ -20460,10 +20460,6 @@ function resize() {
   const _pan = fvw / fvh < aspect * 0.78;
   _panning = _pan;
   try { document.getElementById("app").classList.toggle("panning", _pan); } catch (e) {}
-  // a portrait phone pans a canvas ~3x wider than the screen — at DPR 2 that's a
-  // ~3.9 MP backing store to clear + paint every frame. Cap the density there;
-  // the cove art is soft cartoon shapes and 1.6x hides cleanly.
-  if (_pan) DPR = Math.min(DPR, 1.6);
   let cssW;
   if (_pan) {
     // PAN: viewport clearly taller than the cove (portrait phone / tablet). Lock to
@@ -20483,6 +20479,7 @@ function resize() {
     cssW = fvw;
   }
   const cssH = fvh;
+  DPR = Math.min(DPR, Math.sqrt(6000000 / Math.max(1, cssW * cssH)));
   _overX = Math.max(0, _worldOffX) + 6;
   _viewBottomY = H + Math.min(0, _worldOffY);   // world-y at the viewport's bottom edge
   _narrowUI = fvw < 600;                        // the fixed mobile tab bar is up
@@ -21013,7 +21010,7 @@ window.__cove.perfLite = (v) => {
   if (v !== undefined) {
     _perfTier = v === true ? 1 : v === false ? 0 : +v || 0;
     _perfLite = _perfTier >= 1;
-    if (!restMode) { _dprCap = _perfTier >= 2 ? 1.25 : 2; resize(); }
+    if (!restMode) { _dprCap = _perfTier >= 2 ? 1.5 : 3; resize(); }
   }
   const sessSec = (performance.now() - sessionStart) / 1000;
   return {

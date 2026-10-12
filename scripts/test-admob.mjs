@@ -15,7 +15,7 @@ function harness(platform='ios',allowed=true){
   showPrivacyOptionsForm:async()=>{}
  };
  const ctx={window:{Capacitor:{isNativePlatform:()=>platform!=='web',getPlatform:()=>platform,Plugins:{AdMob:sdk}}},setTimeout,clearTimeout,console};
- vm.runInNewContext(config,ctx);vm.runInNewContext(bridge,ctx);
+ vm.runInNewContext(config,ctx);ctx.window.CoveAdConfig={...ctx.window.CoveAdConfig,testMode:true};vm.runInNewContext(bridge,ctx);
  return {ctx,calls,sdk,ads:ctx.window.CoveNative?.ads,emit:n=>listeners.get(n)?.()};
 }
 for(const p of ['web','unsupported'])assert.equal(harness(p).ads,undefined);
@@ -99,3 +99,4 @@ console.log('PASS: adventure totals, iOS Founder doubling, regular optional bonu
 
 const failure=harness();failure.sdk.requestConsentInfo=async()=>{throw Error('Consent request: Publisher misconfiguration');};assert.equal(await failure.ads.initialize(),false);assert.equal(failure.ads.diagnostic.stage,'consent');assert.match(failure.ads.diagnostic.error,/Publisher misconfiguration/);
 const loadFailure=harness();await loadFailure.ads.initialize();loadFailure.sdk.prepareRewardVideoAd=async()=>{throw Error('Rewarded load: Network unavailable');};assert.equal(await loadFailure.ads.prepare('offline2x'),false);assert.equal(loadFailure.ads.diagnostic.stage,'loading');assert.match(loadFailure.ads.diagnostic.error,/Network unavailable/);console.log('PASS: consent and ad-load failure details remain distinguishable.');
+
